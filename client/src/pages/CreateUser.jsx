@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Button } from '../components/ui';
 import { Input, Select } from '../components/ui';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui';
+import Header from '../components/Header';
 
 const API_URL = 'http://localhost:4000/api/auth';
 
@@ -133,8 +134,11 @@ export default function CreateUser() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 py-12 animate-fadeIn">
-      <div className="w-full max-w-[720px]">
+    <>
+      <Header />
+      <div className="header-spacer" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 py-12 animate-fadeIn">
+        <div className="w-full max-w-[720px]">
         <Card className="animate-slideIn">
           <CardHeader className="text-center">
             <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -254,6 +258,7 @@ export default function CreateUser() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

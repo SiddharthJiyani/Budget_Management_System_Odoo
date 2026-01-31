@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthProvider';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, User, Mail, Calendar, Shield, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Header from '../components/Header';
 
 export default function Dashboard() {
   const { user, logout, isLoading } = useAuth();
@@ -22,18 +23,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
-            ← Home
-          </Link>
-          <button onClick={handleLogout} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2">
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
+    <>
+      <Header />
+      <div className="header-spacer" />
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-4xl mx-auto">
 
         {/* User Profile Card */}
         <div className="bg-card border border-border rounded-lg shadow-lg p-8 mb-8">
@@ -113,7 +107,8 @@ export default function Dashboard() {
             <p className="text-muted-foreground text-sm font-mono">{user?._id}</p>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

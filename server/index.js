@@ -51,6 +51,7 @@ const vendorRoutes = require("./routes/vendor");
 const autoAnalyticalModelRoutes = require("./routes/autoAnalyticalModel");
 const portalRoutes = require("./routes/portal");
 const vendorBillRoutes = require("./routes/vendorBill");
+const salesOrderRoutes = require("./routes/salesOrder");
 
 app.use("/api/auth", userRoutes);
 app.use("/api/files", fileUploadRoutes);
@@ -68,6 +69,7 @@ app.use("/api/auto-analytical-models", autoAnalyticalModelRoutes);
 // Portal routes for customers and vendors
 app.use("/api/portal", portalRoutes);
 app.use("/api/vendor-bills", vendorBillRoutes);
+app.use("/api/sales-orders", salesOrderRoutes);
 
 
 

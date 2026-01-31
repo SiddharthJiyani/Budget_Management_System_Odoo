@@ -13,6 +13,7 @@ import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import CreateUser from './pages/CreateUser'
+import MasterData from './pages/MasterData'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />
+            <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -6,11 +6,11 @@ import toast from 'react-hot-toast';
 
 const menuData = {
   Account: [
-    { label: 'Contact', path: '/account/contact' },
-    { label: 'Product', path: '/account/product' },
-    { label: 'Analyticals', path: '/account/analyticals' },
-    { label: 'Auto Analytic Model', path: '/account/auto-analytic-model' },
-    { label: 'Budget', path: '/account/budget' },
+    { label: 'Contact', path: '/master-data?type=contact' },
+    { label: 'Product', path: '/master-data?type=product' },
+    { label: 'Analyticals', path: '/master-data?type=analytical' },
+    { label: 'Auto Analytic Model', path: '/master-data?type=auto-analytical' },
+    { label: 'Budget', path: '/master-data?type=budget' },
   ],
   Purchase: [
     { label: 'Purchase Order', path: '/purchase/order' },
@@ -104,7 +104,6 @@ export default function Header() {
   const handleItemClick = (item) => {
     setActiveMenu(null);
     navigate(item.path);
-    toast.success(`Navigating to ${item.label}`);
   };
 
   const handleLogout = () => {

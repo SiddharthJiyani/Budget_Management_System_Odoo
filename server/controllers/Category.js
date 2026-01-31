@@ -1,6 +1,9 @@
 const Category = require("../models/Category");
 const Product = require("../models/Product");
 
+// Helper to check if a string looks like a MongoDB ObjectId
+const isMongoId = (str) => /^[a-f0-9]{24}$/i.test(str);
+
 // Create Category
 exports.createCategory = async (req, res) => {
     try {
@@ -13,8 +16,16 @@ exports.createCategory = async (req, res) => {
             });
         }
 
+        // Prevent creating categories with ID-like names
+        if (isMongoId(name.trim())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid category name. Please use a descriptive name.",
+            });
+        }
+
         // Check if category already exists
-        const existingCategory = await Category.findOne({ name });
+        const existingCategory = await Category.findOne({ name: name.trim() });
         if (existingCategory) {
             return res.status(400).json({
                 success: false,
@@ -24,7 +35,7 @@ exports.createCategory = async (req, res) => {
         }
 
         const category = await Category.create({
-            name,
+            name: name.trim(),
             description,
             color,
             createdBy: req.user.id,
@@ -52,10 +63,15 @@ exports.getAllCategories = async (req, res) => {
             .populate('createdBy', 'firstName lastName email')
             .sort({ name: 1 });
 
+        // Filter out categories with invalid (ID-like) names
+        const validCategories = categories.filter(cat => 
+            cat.name && !isMongoId(cat.name)
+        );
+
         return res.status(200).json({
             success: true,
             message: "Categories retrieved successfully",
-            data: categories,
+            data: validCategories,
         });
     } catch (error) {
         console.error("Get categories error:", error);
@@ -182,6 +198,57 @@ exports.deleteCategory = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Error deleting category",
+            error: error.message,
+        });
+    }
+};
+
+// Cleanup invalid categories (with ID-like names)
+exports.cleanupInvalidCategories = async (req, res) => {
+    try {
+        // Find all categories with ID-like names
+        const allCategories = await Category.find();
+        const invalidCategories = allCategories.filter(cat => isMongoId(cat.name));
+
+        if (invalidCategories.length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: "No invalid categories found",
+                data: { deletedCount: 0 },
+            });
+        }
+
+        // Delete invalid categories that aren't being used by products
+        let deletedCount = 0;
+        const skippedCategories = [];
+
+        for (const cat of invalidCategories) {
+            const productCount = await Product.countDocuments({ category: cat._id });
+            if (productCount === 0) {
+                await Category.findByIdAndDelete(cat._id);
+                deletedCount++;
+            } else {
+                skippedCategories.push({
+                    id: cat._id,
+                    name: cat.name,
+                    productCount,
+                });
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Cleanup complete. Deleted ${deletedCount} invalid categories.`,
+            data: {
+                deletedCount,
+                skippedCategories,
+            },
+        });
+    } catch (error) {
+        console.error("Cleanup categories error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error cleaning up categories",
             error: error.message,
         });
     }

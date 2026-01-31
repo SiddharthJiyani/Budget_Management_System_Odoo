@@ -518,10 +518,13 @@ export default function VendorBillForm() {
                             {product.productName || product.description}
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">
-                            {product.budgetAnalyticId ? (
-                              analytics.find(a => a._id === product.budgetAnalyticId)?.name || 'Unknown'
-                            ) : (
-                              <span className="text-xs italic">Auto-assigned</span>
+                            {product.budgetAnalyticId?.name || (
+                              <span className="text-xs italic text-muted-foreground/60">No analytics assigned</span>
+                            )}
+                            {product.autoAssigned && product.budgetAnalyticId?.name && (
+                              <span className="ml-2 px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+                                Auto
+                              </span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-sm text-right font-mono">

@@ -14,25 +14,19 @@ exports.createProduct = async (req, res) => {
             });
         }
 
-        // Validate category exists (or create if it's a string)
-        let categoryId = category;
-        if (typeof category === 'string') {
-            // Check if category exists
-            let categoryDoc = await Category.findOne({ name: category });
-            // Create category on-the-fly if it doesn't exist
-            if (!categoryDoc) {
-                categoryDoc = await Category.create({
-                    name: category,
-                    createdBy: req.user.id,
-                });
-            }
-            categoryId = categoryDoc._id;
+        // Validate that category exists
+        const categoryExists = await Category.findById(category);
+        if (!categoryExists) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid category. Please select a valid category.",
+            });
         }
 
         // Create product
         const product = await Product.create({
             name,
-            category: categoryId,
+            category,
             salesPrice,
             purchasePrice,
             status: 'new',
@@ -150,20 +144,16 @@ exports.updateProduct = async (req, res) => {
             });
         }
 
-        // Process category if provided
+        // Validate category if provided
         if (category) {
-            let categoryId = category;
-            if (typeof category === 'string') {
-                let categoryDoc = await Category.findOne({ name: category });
-                if (!categoryDoc) {
-                    categoryDoc = await Category.create({
-                        name: category,
-                        createdBy: req.user.id,
-                    });
-                }
-                categoryId = categoryDoc._id;
+            const categoryExists = await Category.findById(category);
+            if (!categoryExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid category. Please select a valid category.",
+                });
             }
-            product.category = categoryId;
+            product.category = category;
         }
 
         // Update fields

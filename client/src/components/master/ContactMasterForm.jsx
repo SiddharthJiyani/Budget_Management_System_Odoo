@@ -19,6 +19,7 @@ export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
     pincode: '',
     tags: '',
     image: null,
+    imageFile: null,
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,36 +67,10 @@ export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!recordId) {
-        toast.error('Please save the contact first before uploading an image');
-        return;
-      }
-
-      const formDataUpload = new FormData();
-      formDataUpload.append('image', file);
-
-      try {
-        setIsLoading(true);
-        const response = await fetch(API_ENDPOINTS.CONTACTS.UPLOAD_IMAGE(recordId), {
-          method: 'POST',
-          headers: getFileUploadHeaders(),
-          body: formDataUpload,
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-          setFormData((prev) => ({ ...prev, image: data.data.url }));
-          toast.success('Image uploaded successfully!');
-        } else {
-          toast.error(data.message || 'Failed to upload image');
-        }
-      } catch (error) {
-        console.error('Image upload error:', error);
-        toast.error('Failed to upload image');
-      } finally {
-        setIsLoading(false);
-      }
+      // Create preview URL immediately
+      const previewUrl = URL.createObjectURL(file);
+      setFormData((prev) => ({ ...prev, image: previewUrl, imageFile: file }));
+      toast.success('Image selected! It will be uploaded when you save.');
     }
   };
 
@@ -138,7 +113,37 @@ export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
       const data = await response.json();
 
       if (data.success) {
-        toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
+        const savedRecordId = recordId || data.data._id;
+
+        // Upload image if one was selected
+        if (formData.imageFile) {
+          const formDataUpload = new FormData();
+          formDataUpload.append('image', formData.imageFile);
+
+          try {
+            const imageResponse = await fetch(API_ENDPOINTS.CONTACTS.UPLOAD_IMAGE(savedRecordId), {
+              method: 'POST',
+              headers: getFileUploadHeaders(),
+              body: formDataUpload,
+            });
+
+            const imageData = await imageResponse.json();
+
+            if (imageData.success) {
+              toast.success(`Contact ${recordId ? 'updated' : 'created'} and image uploaded successfully!`);
+            } else {
+              toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
+              toast.error('Failed to upload image: ' + (imageData.message || 'Unknown error'));
+            }
+          } catch (imageError) {
+            console.error('Image upload error:', imageError);
+            toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
+            toast.error('Failed to upload image');
+          }
+        } else {
+          toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
+        }
+
         onBack();
       } else {
         toast.error(data.message || 'Failed to save contact');

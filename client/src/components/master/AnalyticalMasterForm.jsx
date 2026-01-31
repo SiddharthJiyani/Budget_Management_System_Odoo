@@ -5,48 +5,85 @@ import toast from 'react-hot-toast';
 
 const mockAnalytical = {
   id: 1,
-  name: 'Marketing Campaign 2026',
-  code: 'MKT-2026',
-  type: 'marketing',
+  name: 'Deepawali',
+  description: 'Festival season analytics for decoration and lighting products',
+  startDate: '2026-10-20',
+  endDate: '2026-11-05',
+  productCategory: 'decoration',
+  status: 'Confirmed',
   archived: false,
 };
 
-const typeOptions = [
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'research', label: 'Research' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'hr', label: 'Human Resources' },
+const categoryOptions = [
+  { value: 'furniture', label: 'Furniture' },
+  { value: 'decoration', label: 'Decoration' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'stationery', label: 'Stationery' },
 ];
 
 export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }) {
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
-    type: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    productCategory: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (recordId) {
       setFormData({
         name: mockAnalytical.name,
-        code: mockAnalytical.code,
-        type: mockAnalytical.type,
+        description: mockAnalytical.description,
+        startDate: mockAnalytical.startDate,
+        endDate: mockAnalytical.endDate,
+        productCategory: mockAnalytical.productCategory,
       });
     }
   }, [recordId]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user types
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Analytic Name is required';
+    }
+
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (end < start) {
+        newErrors.endDate = 'End Date must be greater than or equal to Start Date';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      toast.error('Please fix the errors in the form');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Analytical account ${recordId ? 'updated' : 'created'} successfully!`);
+      toast.success(`Analytic ${recordId ? 'updated' : 'created'} successfully!`);
       onBack();
     } catch (error) {
       toast.error('Something went wrong');
@@ -56,7 +93,7 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
   };
 
   const handleArchive = () => {
-    toast.success('Analytical account archived');
+    toast.success('Analytic archived');
     onBack();
   };
 
@@ -65,9 +102,9 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Analytical Master</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Analytics Master</h1>
           <p className="text-muted-foreground">
-            {recordId ? 'Edit Analytical Account' : 'New Analytical Account'}
+            {recordId ? 'Edit Analytic' : 'New Analytic'}
           </p>
         </div>
       </div>
@@ -106,34 +143,53 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-8">
-          <div className="max-w-2xl space-y-5">
+          <div className="max-w-3xl space-y-5">
             <Input
-              label="Account Name"
+              label="Analytic Name"
               type="text"
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              placeholder="Enter analytical account name"
+              placeholder="Enter analytic name (e.g., Deepawali, Marriage Session)"
+              error={errors.name}
               required
             />
 
-            <div className="grid grid-cols-2 gap-5">
-              <Input
-                label="Account Code"
-                type="text"
-                value={formData.code}
-                onChange={(e) => handleChange('code', e.target.value)}
-                placeholder="e.g., MKT-2026"
-                required
-              />
-              <Select
-                label="Type"
-                value={formData.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-                options={typeOptions}
-                placeholder="Select type"
-                required
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-muted-foreground">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleChange('description', e.target.value)}
+                placeholder="Enter description (optional)"
+                className="w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder-muted-foreground neu-input focus-ring resize-none"
+                rows={4}
               />
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Input
+                label="Start Date"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => handleChange('startDate', e.target.value)}
+              />
+              <Input
+                label="End Date"
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => handleChange('endDate', e.target.value)}
+                error={errors.endDate}
+              />
+            </div>
+
+            <Select
+              label="Product Category"
+              value={formData.productCategory}
+              onChange={(e) => handleChange('productCategory', e.target.value)}
+              options={categoryOptions}
+              placeholder="Select product category (optional)"
+            />
           </div>
         </form>
       </Card>

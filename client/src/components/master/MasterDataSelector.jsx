@@ -18,8 +18,8 @@ const masterTypes = [
   },
   {
     id: 'analytical',
-    label: 'Analytical Master',
-    description: 'Manage analytical accounts and dimensions',
+    label: 'Analytics Master',
+    description: 'Manage analytics entities for campaigns and events',
     icon: BarChart3,
     color: 'bg-accent',
   },

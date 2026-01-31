@@ -7,16 +7,29 @@ import toast from 'react-hot-toast';
 const mockAnalyticals = [
   {
     id: 1,
-    name: 'Marketing Campaign 2026',
-    code: 'MKT-2026',
-    type: 'Marketing',
+    name: 'Deepawali',
+    productCategory: 'Decoration',
+    startDate: '2026-10-20',
+    endDate: '2026-11-05',
+    status: 'Confirmed',
     archived: false,
   },
   {
     id: 2,
-    name: 'R&D Project Alpha',
-    code: 'RND-ALPHA',
-    type: 'Research',
+    name: 'Marriage Session',
+    productCategory: 'Furniture',
+    startDate: '2026-01-15',
+    endDate: '2026-03-31',
+    status: 'Confirmed',
+    archived: false,
+  },
+  {
+    id: 3,
+    name: 'Furniture Expo 2026',
+    productCategory: 'Furniture',
+    startDate: '2026-06-01',
+    endDate: '2026-06-15',
+    status: 'New',
     archived: false,
   },
 ];
@@ -61,7 +74,7 @@ export default function AnalyticalMasterList({ onNew, onEdit, onHome }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Analytical Master</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Analytics Master</h1>
           <p className="text-muted-foreground">List View</p>
         </div>
         <Button
@@ -122,17 +135,19 @@ export default function AnalyticalMasterList({ onNew, onEdit, onHome }) {
                     className="w-4 h-4 rounded cursor-pointer"
                   />
                 </th>
-                <th className="text-left p-4 font-semibold text-primary">Name</th>
-                <th className="text-left p-4 font-semibold text-primary">Code</th>
-                <th className="text-left p-4 font-semibold text-primary">Type</th>
+                <th className="text-left p-4 font-semibold text-primary">Analytic Name</th>
+                <th className="text-left p-4 font-semibold text-primary">Product Category</th>
+                <th className="text-left p-4 font-semibold text-primary">Start Date</th>
+                <th className="text-left p-4 font-semibold text-primary">End Date</th>
+                <th className="text-left p-4 font-semibold text-primary">Status</th>
                 <th className="text-center p-4 font-semibold text-primary">Actions</th>
               </tr>
             </thead>
             <tbody>
               {displayedAnalyticals.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center p-12 text-muted-foreground">
-                    No analytical accounts found. Click "New" to create one.
+                  <td colSpan="7" className="text-center p-12 text-muted-foreground">
+                    No analytics found. Click "New" to create one.
                   </td>
                 </tr>
               ) : (
@@ -159,13 +174,27 @@ export default function AnalyticalMasterList({ onNew, onEdit, onHome }) {
                     <td className="p-4 font-medium text-foreground group-hover:text-primary transition-colors">
                       {item.name}
                     </td>
-                    <td className="p-4 text-muted-foreground">{item.code}</td>
-                    <td className="p-4 text-muted-foreground">{item.type}</td>
+                    <td className="p-4 text-muted-foreground">{item.productCategory || '-'}</td>
+                    <td className="p-4 text-muted-foreground">
+                      {item.startDate ? new Date(item.startDate).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="p-4 text-muted-foreground">
+                      {item.endDate ? new Date(item.endDate).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'Confirmed' 
+                          ? 'bg-success/20 text-success' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </td>
                     <td className="p-4 text-center">
                       <button
                         onClick={(e) => handleDelete(e, item)}
                         className="inline-flex items-center justify-center p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all hover:scale-110"
-                        title="Delete analytical account"
+                        title="Delete analytic"
                       >
                         <Trash2 size={16} />
                       </button>

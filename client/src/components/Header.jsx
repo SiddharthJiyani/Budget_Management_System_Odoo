@@ -8,7 +8,7 @@ const menuData = {
   Account: [
     { label: 'Contact', path: '/master-data?type=contact' },
     { label: 'Product', path: '/master-data?type=product' },
-    { label: 'Analyticals', path: '/master-data?type=analytical' },
+    { label: 'Analytics', path: '/master-data?type=analytical' },
     { label: 'Auto Analytic Model', path: '/master-data?type=auto-analytical' },
     { label: 'Budget', path: '/master-data?type=budget' },
   ],

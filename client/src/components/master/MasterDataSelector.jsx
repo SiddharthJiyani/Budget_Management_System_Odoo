@@ -26,7 +26,7 @@ const masterTypes = [
   {
     id: 'auto-analytical',
     label: 'Auto Analytical Model',
-    description: 'Configure automatic analytical distributions',
+    description: 'Define rules for automatic analytic assignment',
     icon: Workflow,
     color: 'bg-secondary',
   },

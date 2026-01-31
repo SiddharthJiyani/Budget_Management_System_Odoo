@@ -8,6 +8,10 @@ import ProductMasterList from '../components/master/ProductMasterList';
 import ProductMasterForm from '../components/master/ProductMasterForm';
 import AnalyticalMasterList from '../components/master/AnalyticalMasterList';
 import AnalyticalMasterForm from '../components/master/AnalyticalMasterForm';
+import AutoAnalyticalModelList from '../components/master/AutoAnalyticalModelList';
+import AutoAnalyticalModelForm from '../components/master/AutoAnalyticalModelForm';
+import BudgetMasterList from '../components/master/BudgetMasterList';
+import BudgetMasterForm from '../components/master/BudgetMasterForm';
 
 export default function MasterData() {
   const [searchParams] = useSearchParams();
@@ -71,6 +75,22 @@ export default function MasterData() {
               onHome={handleHome}
             />
           );
+        case 'auto-analytical':
+          return (
+            <AutoAnalyticalModelList
+              onNew={handleNewRecord}
+              onEdit={handleEditRecord}
+              onHome={handleHome}
+            />
+          );
+        case 'budget':
+          return (
+            <BudgetMasterList
+              onNew={handleNewRecord}
+              onEdit={handleEditRecord}
+              onHome={handleHome}
+            />
+          );
         default:
           return <MasterDataSelector onSelect={handleSelectMasterType} />;
       }
@@ -97,6 +117,24 @@ export default function MasterData() {
         case 'analytical':
           return (
             <AnalyticalMasterForm
+              recordId={recordId}
+              onBack={handleBackToList}
+              onHome={handleHome}
+              onNew={handleNewRecord}
+            />
+          );
+        case 'auto-analytical':
+          return (
+            <AutoAnalyticalModelForm
+              recordId={recordId}
+              onBack={handleBackToList}
+              onHome={handleHome}
+              onNew={handleNewRecord}
+            />
+          );
+        case 'budget':
+          return (
+            <BudgetMasterForm
               recordId={recordId}
               onBack={handleBackToList}
               onHome={handleHome}

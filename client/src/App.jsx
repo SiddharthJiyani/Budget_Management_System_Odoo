@@ -14,6 +14,7 @@ import Signup from './pages/Signup'
 import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
+import CreateUser from './pages/CreateUser'
 import { LogIn, User, Upload as UploadIcon } from 'lucide-react'
 
 
@@ -101,6 +102,7 @@ function App() {
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

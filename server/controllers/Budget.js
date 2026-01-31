@@ -30,7 +30,8 @@ exports.createBudget = async (req, res) => {
             createdBy: req.user.id,
         });
 
-        await budget.populate('lines.analyticMasterId', 'name description');
+        // Populate analytics in real-time to get name and type
+        await budget.populate('lines.analyticMasterId', 'name description type');
 
         return res.status(201).json({
             success: true,
@@ -66,6 +67,7 @@ exports.getAllBudgets = async (req, res) => {
             .populate('createdBy', 'firstName lastName email')
             .populate('originalBudgetId', 'name')
             .populate('revisedBudgetId', 'name')
+            .populate('lines.analyticMasterId', 'name description type') // Populate analytics with type
             .sort({ createdAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -92,7 +94,7 @@ exports.getAllBudgets = async (req, res) => {
     }
 };
 
-// Get budget by ID
+// Get budget by ID - Dynamically fetches current analytics for the date range
 exports.getBudgetById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -101,7 +103,7 @@ exports.getBudgetById = async (req, res) => {
             .populate('createdBy', 'firstName lastName email')
             .populate('originalBudgetId', 'name status')
             .populate('revisedBudgetId', 'name status')
-            .populate('lines.analyticMasterId', 'name description');
+            .populate('lines.analyticMasterId', 'name description type');
 
         if (!budget) {
             return res.status(404).json({
@@ -110,10 +112,56 @@ exports.getBudgetById = async (req, res) => {
             });
         }
 
+        // Fetch current analytics for the budget's date range (excluding archived)
+        const currentAnalytics = await AnalyticMaster.find({
+            startDate: { $lte: budget.endDate },
+            $or: [
+                { endDate: { $gte: budget.startDate } },
+                { endDate: null }
+            ],
+            status: { $ne: 'archived' } // Exclude archived analytics
+        }).select('name description type');
+
+        // Merge existing budget lines with current analytics
+        // Create a map of existing lines for quick lookup
+        const existingLinesMap = new Map();
+        budget.lines.forEach(line => {
+            const analyticId = line.analyticMasterId?._id?.toString() || line.analyticMasterId?.toString();
+            if (analyticId) {
+                existingLinesMap.set(analyticId, line);
+            }
+        });
+
+        // Merge: include all current analytics, preserve budgeted amounts for existing ones
+        const mergedLines = currentAnalytics.map(analytic => {
+            const existingLine = existingLinesMap.get(analytic._id.toString());
+            
+            if (existingLine) {
+                // Keep existing amounts, update reference to populated object
+                return {
+                    ...existingLine.toObject(),
+                    analyticMasterId: analytic, // Use current analytic data
+                };
+            } else {
+                // New analytic added after budget creation - add with zero amounts
+                return {
+                    analyticMasterId: analytic,
+                    budgetedAmount: 0,
+                    achievedAmount: 0,
+                    achievedPercent: 0,
+                    amountToAchieve: 0,
+                };
+            }
+        });
+
+        // Return budget with dynamically updated lines
+        const budgetWithUpdatedLines = budget.toObject();
+        budgetWithUpdatedLines.lines = mergedLines;
+
         return res.status(200).json({
             success: true,
-            message: "Budget retrieved successfully",
-            data: budget,
+            message: "Budget retrieved successfully with current analytics",
+            data: budgetWithUpdatedLines,
         });
     } catch (error) {
         console.error("Get budget error:", error);
@@ -163,7 +211,7 @@ exports.updateBudget = async (req, res) => {
         if (lines) budget.lines = lines;
 
         await budget.save();
-        await budget.populate('lines.analyticMasterId', 'name description');
+        await budget.populate('lines.analyticMasterId', 'name description type'); // Populate analytics with type
 
         return res.status(200).json({
             success: true,
@@ -277,15 +325,13 @@ exports.createRevision = async (req, res) => {
         const year = now.getFullYear();
         const revisionName = `${originalBudget.name} (Rev ${day} ${month} ${year})`;
 
-        // Create revised budget
+        // Create revised budget - only store reference and amounts, not name/type
         const revisedBudget = await Budget.create({
             name: revisionName,
             startDate: originalBudget.startDate,
             endDate: originalBudget.endDate,
             lines: originalBudget.lines.map(line => ({
                 analyticMasterId: line.analyticMasterId,
-                analyticName: line.analyticName,
-                type: line.type,
                 budgetedAmount: line.budgetedAmount,
                 achievedAmount: 0,
                 achievedPercent: 0,
@@ -301,7 +347,7 @@ exports.createRevision = async (req, res) => {
         originalBudget.revisedBudgetId = revisedBudget._id;
         await originalBudget.save();
 
-        await revisedBudget.populate('lines.analyticMasterId', 'name description');
+        await revisedBudget.populate('lines.analyticMasterId', 'name description type'); // Populate analytics with type
 
         return res.status(201).json({
             success: true,

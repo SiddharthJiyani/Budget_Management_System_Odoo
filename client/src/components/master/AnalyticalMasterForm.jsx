@@ -13,6 +13,7 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
     startDate: '',
     endDate: '',
     productCategory: '',
+    type: 'Expense',
   });
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +63,7 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
           startDate: analytic.startDate ? analytic.startDate.split('T')[0] : '',
           endDate: analytic.endDate ? analytic.endDate.split('T')[0] : '',
           productCategory: analytic.productCategory?._id || '',
+          type: analytic.type || 'Expense',
         });
       } else {
         toast.error(data.message || 'Failed to load analytic');
@@ -116,6 +118,7 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
         startDate: formData.startDate || null,
         endDate: formData.endDate || null,
         productCategory: formData.productCategory || null,
+        type: formData.type,
       };
 
       const url = recordId
@@ -255,13 +258,27 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
               />
             </div>
 
-            <Select
-              label="Product Category"
-              value={formData.productCategory}
-              onChange={(e) => handleChange('productCategory', e.target.value)}
-              options={categoryOptions}
-              placeholder="Select product category (optional)"
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Select
+                label="Product Category"
+                value={formData.productCategory}
+                onChange={(e) => handleChange('productCategory', e.target.value)}
+                options={categoryOptions}
+                placeholder="Select product category (optional)"
+              />
+              
+              <Select
+                label="Type"
+                value={formData.type}
+                onChange={(e) => handleChange('type', e.target.value)}
+                options={[
+                  { value: 'Income', label: 'Income' },
+                  { value: 'Expense', label: 'Expense' },
+                ]}
+                placeholder="Select type"
+                required
+              />
+            </div>
           </div>
         </form>
       </Card>

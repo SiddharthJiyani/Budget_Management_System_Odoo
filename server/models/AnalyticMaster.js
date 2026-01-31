@@ -23,6 +23,13 @@ const analyticMasterSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
     },
+    // Type for budget allocation (Income or Expense)
+    type: {
+        type: String,
+        enum: ['Income', 'Expense'],
+        default: 'Expense',
+        required: [true, "Analytic type is required"],
+    },
     status: {
         type: String,
         enum: ['new', 'confirmed', 'archived'],

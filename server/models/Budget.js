@@ -1,19 +1,11 @@
 const mongoose = require("mongoose");
 
 // Budget Line Schema (embedded in Budget)
+// Only stores reference and amounts - name and type fetched in real-time from AnalyticMaster
 const budgetLineSchema = new mongoose.Schema({
     analyticMasterId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "AnalyticMaster",
-        required: true,
-    },
-    analyticName: {
-        type: String,
-        required: true,
-    },
-    type: {
-        type: String,
-        enum: ["Income", "Expense"],
         required: true,
     },
     budgetedAmount: {

@@ -78,11 +78,9 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
 
       if (data.success) {
         setAnalytics(data.data);
-        // Create budget lines from analytics
+        // Create budget lines - only store reference and amounts, NOT name/type
         const lines = data.data.map(analytic => ({
           analyticMasterId: analytic._id,
-          analyticName: analytic.name,
-          type: 'Income', // Default, should be determined from analytic or user selection
           budgetedAmount: 0,
           achievedAmount: 0,
           achievedPercent: 0,
@@ -498,33 +496,37 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {budgetLines.map((line, index) => (
+                  {budgetLines.map((line, index) => {
+                    // Get analytic data - either from populated analyticMasterId or local analytics array
+                    const analyticData = line.analyticMasterId?._id 
+                      ? line.analyticMasterId  // Populated from backend
+                      : analytics.find(a => a._id === line.analyticMasterId); // Local array for new budgets
+                    
+                    const analyticName = analyticData?.name || 'Unknown';
+                    const analyticType = analyticData?.type || 'Expense';
+                    
+                    return (
                     <tr
                       key={line._id || index}
-                      className={`border-b border-border/30 transition-colors ${line.type === 'Income'
+                      className={`border-b border-border/30 transition-colors ${analyticType === 'Income'
                           ? 'bg-success/[0.05] hover:bg-success/[0.08]'
                           : 'bg-accent/[0.05] hover:bg-accent/[0.08]'
                         }`}
                     >
                       {/* Analytic Name */}
                       <td className="px-4 py-2 text-sm text-foreground">
-                        {line.analyticName}
+                        {analyticName}
                       </td>
 
-                      {/* Type */}
+                      {/* Type - Read-only from AnalyticMaster */}
                       <td className="px-4 py-2 text-sm text-foreground">
-                        {canEdit ? (
-                          <select
-                            value={line.type}
-                            onChange={(e) => handleLineChange(index, 'type', e.target.value)}
-                            className="px-2 py-1 rounded bg-input text-foreground border border-border"
-                          >
-                            <option value="Income">Income</option>
-                            <option value="Expense">Expense</option>
-                          </select>
-                        ) : (
-                          line.type
-                        )}
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          analyticType === 'Income' 
+                            ? 'bg-success/20 text-success' 
+                            : 'bg-accent/20 text-accent-foreground'
+                        }`}>
+                          {analyticType}
+                        </span>
                       </td>
 
                       {/* Budgeted Amount */}
@@ -580,7 +582,8 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
                         </>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

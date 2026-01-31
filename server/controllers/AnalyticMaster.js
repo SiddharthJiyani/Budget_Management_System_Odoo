@@ -4,12 +4,20 @@ const Category = require("../models/Category");
 // Create Analytic Master
 exports.createAnalyticMaster = async (req, res) => {
     try {
-        const { name, description, startDate, endDate, productCategory } = req.body;
+        const { name, description, startDate, endDate, productCategory, type } = req.body;
 
         if (!name) {
             return res.status(400).json({
                 success: false,
                 message: "Analytic name is required",
+            });
+        }
+
+        // Validate type if provided
+        if (type && !['Income', 'Expense'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: "Type must be either 'Income' or 'Expense'",
             });
         }
 
@@ -44,6 +52,7 @@ exports.createAnalyticMaster = async (req, res) => {
             startDate,
             endDate,
             productCategory: categoryId,
+            type: type || 'Expense',
             status: 'new',
             createdBy: req.user.id,
         });
@@ -145,13 +154,21 @@ exports.getAnalyticMasterById = async (req, res) => {
 exports.updateAnalyticMaster = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, startDate, endDate, productCategory, status } = req.body;
+        const { name, description, startDate, endDate, productCategory, status, type } = req.body;
 
         const analytic = await AnalyticMaster.findById(id);
         if (!analytic) {
             return res.status(404).json({
                 success: false,
                 message: "Analytic not found",
+            });
+        }
+
+        // Validate type if provided
+        if (type && !['Income', 'Expense'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                message: "Type must be either 'Income' or 'Expense'",
             });
         }
 
@@ -186,6 +203,7 @@ exports.updateAnalyticMaster = async (req, res) => {
         if (startDate) analytic.startDate = startDate;
         if (endDate) analytic.endDate = endDate;
         if (status) analytic.status = status;
+        if (type) analytic.type = type;
 
         await analytic.save();
         await analytic.populate('productCategory');

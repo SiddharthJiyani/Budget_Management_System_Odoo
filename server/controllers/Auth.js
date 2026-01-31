@@ -52,14 +52,22 @@ exports.checkLoginId = async (req, res) => {
   }
 };
 
-// Signup function
-exports.signup = async (req, res) => {
+// Create User function (Admin only - for creating both admin and portal users)
+exports.createUser = async (req, res) => {
   try {
     // Destructure fields from the request body
     const { firstName, lastName, loginId, email, password, confirmPassword, accountType, otp } = req.body;
     
+    // Validate accountType (admin can create both admin and portal users)
+    if (!accountType || !['admin', 'portal'].includes(accountType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid account type. Must be 'admin' or 'portal'.",
+      });
+    }
+    
     // Check required fields (OTP is optional)
-    if (!email || !password || !confirmPassword || !accountType) {
+    if (!email || !password || !confirmPassword) {
       return res.status(403).send({
         success: false,
         message: "All Fields are required",
@@ -124,7 +132,103 @@ exports.signup = async (req, res) => {
       loginId: loginId || undefined,
       email,
       password: hashedPassword,
-      accountType: accountType,
+      accountType: accountType, // Can be 'admin' or 'portal'
+    });
+    
+    // Remove password from response
+    user.password = undefined;
+    
+    return res.status(200).json({
+      success: true,
+      user,
+      message: `${accountType === 'admin' ? 'Admin' : 'Portal'} user created successfully`,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "User cannot be created. Please try again.",
+    });
+  }
+};
+
+// Signup function (PUBLIC - Portal users only)
+exports.signup = async (req, res) => {
+  try {
+    // Destructure fields from the request body
+    const { firstName, lastName, loginId, email, password, confirmPassword, accountType, otp } = req.body;
+    
+    // CRITICAL: Signup can ONLY create portal users, never admin
+    // Ignore any accountType sent from frontend and force 'portal'
+    const forcedAccountType = 'portal';
+    
+    // Check required fields (OTP is optional)
+    if (!email || !password || !confirmPassword) {
+      return res.status(403).send({
+        success: false,
+        message: "All Fields are required",
+      });
+    }
+
+    // Check if password and confirm password match
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password and Confirm Password do not match. Please try again.",
+      });
+    }
+
+    // Check if user already exists (by email)
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists. Please sign in to continue.",
+      });
+    }
+
+    // Check if loginId already exists (if provided)
+    if (loginId) {
+      const existingLoginId = await User.findOne({ loginId });
+      if (existingLoginId) {
+        return res.status(400).json({
+          success: false,
+          message: "Login ID already exists. Please choose another.",
+        });
+      }
+
+      // Validate loginId length
+      if (loginId.length < 6 || loginId.length > 12) {
+        return res.status(400).json({
+          success: false,
+          message: "Login ID must be 6-12 characters.",
+        });
+      }
+    }
+
+    // Verify OTP if provided
+    if (otp) {
+      const response = await OTP.find({ email }).sort({ createdAt: -1 }).limit(1);
+      if (response.length === 0 || otp !== response[0].otp) {
+        return res.status(400).json({
+          success: false,
+          message: "The OTP is not valid",
+        });
+      }
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user entry in db
+    const user = await User.create({
+      firstName: firstName || "",
+      lastName: lastName || "",
+      name: `${firstName || ""} ${lastName || ""}`.trim(), // Combined full name
+      loginId: loginId || undefined,
+      email,
+      password: hashedPassword,
+      accountType: forcedAccountType, // Always 'portal' for public signup
     });
     
     // Remove password from response

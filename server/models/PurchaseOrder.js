@@ -14,6 +14,36 @@ const purchaseOrderLineSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "AnalyticMaster",
     },
+    /**
+     * Indicates if the analytics was auto-assigned by the AutoAnalyticalService
+     * true = system assigned based on rules
+     * false = user manually selected
+     */
+    autoAssigned: {
+        type: Boolean,
+        default: false,
+    },
+    /**
+     * Indicates if user manually changed an auto-assigned analytics
+     * Once true, auto-logic will NOT re-run on this line during updates
+     */
+    analyticsOverridden: {
+        type: Boolean,
+        default: false,
+    },
+    /**
+     * Stores the matched rule details for audit trail
+     * Only populated when autoAssigned=true
+     */
+    autoAssignmentDetails: {
+        ruleId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "AutoAnalyticalModel",
+        },
+        ruleName: String,
+        matchedFields: [String],
+        explanation: String,
+    },
     quantity: {
         type: Number,
         required: [true, "Quantity is required"],

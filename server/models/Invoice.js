@@ -99,31 +99,28 @@ const invoiceSchema = new mongoose.Schema({
 });
 
 // Calculate line subtotal before saving
-invoiceLineSchema.pre('save', function(next) {
+invoiceLineSchema.pre('save', function (next) {
     this.subtotal = this.quantity * this.unitPrice;
     next();
 });
 
 // Calculate totals before saving invoice
-invoiceSchema.pre('save', function(next) {
+invoiceSchema.pre('save', function (next) {
     // Calculate subtotal from lines
     this.subtotalAmount = this.lines.reduce((sum, line) => {
         line.subtotal = line.quantity * line.unitPrice;
         return sum + line.subtotal;
     }, 0);
-    
+
     // Calculate total and balance
     this.totalAmount = this.subtotalAmount + this.taxAmount;
     this.balanceAmount = this.totalAmount - this.paidAmount;
-    
+
     next();
 });
 
 // Indexes for better query performance
-invoiceSchema.index({ invoiceNumber: 1 });
 invoiceSchema.index({ customer: 1, status: 1 });
-invoiceSchema.index({ invoiceDate: 1 });
-invoiceSchema.index({ status: 1 });
 invoiceSchema.index({ 'lines.analyticMaster': 1 }); // For budget calculations
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

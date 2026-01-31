@@ -5,9 +5,9 @@ const AuthContext = createContext({
   token: null,
   isAuthenticated: false,
   isLoading: true,
-  login: () => {},
-  logout: () => {},
-  setAuthData: () => {},
+  login: () => { },
+  logout: () => { },
+  setAuthData: () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const verifyToken = async () => {
       const storedToken = localStorage.getItem('token');
-      
+
       if (!storedToken) {
         setIsLoading(false);
         return;
@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('token', data.token);
       setToken(data.token);
       setUser(data.user);
-      return { success: true };
+      return { success: true, user: data.user };
     }
 
     return { success: false, message: data.message };

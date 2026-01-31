@@ -47,7 +47,12 @@ const partnerTagRoutes = require("./routes/partnerTag");
 const analyticMasterRoutes = require("./routes/analyticMaster");
 const budgetRoutes = require("./routes/budget");
 const purchaseOrderRoutes = require("./routes/purchaseOrder");
+<<<<<<< Updated upstream
 const vendorRoutes = require("./routes/vendor");
+=======
+const autoAnalyticalModelRoutes = require("./routes/autoAnalyticalModel");
+const portalRoutes = require("./routes/portal");
+>>>>>>> Stashed changes
 
 app.use("/api/auth", userRoutes);
 app.use("/api/files", fileUploadRoutes);
@@ -60,7 +65,14 @@ app.use("/api/partner-tags", partnerTagRoutes);
 app.use("/api/analytics", analyticMasterRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
+<<<<<<< Updated upstream
 app.use("/api/vendors", vendorRoutes);
+=======
+app.use("/api/auto-analytical-models", autoAnalyticalModelRoutes);
+// Portal routes for customers and vendors
+app.use("/api/portal", portalRoutes);
+
+>>>>>>> Stashed changes
 
 
 // Start the server

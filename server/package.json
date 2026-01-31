@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "run": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test": "jest --testPathPattern=tests --verbose",
+    "test:watch": "jest --testPathPattern=tests --watch"
   },
   "keywords": [],
   "author": "",
@@ -28,5 +30,8 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.17.2",
     "razorpay": "^2.9.6"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

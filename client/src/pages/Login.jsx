@@ -28,12 +28,19 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      // Using email for now, adjust based on actual API
       const result = await login(loginId, password);
 
       if (result.success) {
         toast.success('Login successful! 🎉');
-        navigate('/dashboard');
+
+        // Redirect based on user account type
+        // Portal users (customers/vendors) go to their invoices
+        // Admin users go to dashboard
+        if (result.user?.accountType === 'portal') {
+          navigate('/portal/invoices');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError('Invalid Login ID or Password');
         toast.error('Invalid Login ID or Password');

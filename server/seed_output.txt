@@ -1,0 +1,63 @@
+﻿============================================================
+≡ƒî▒ PORTAL DATA SEED SCRIPT
+============================================================
+
+≡ƒöî Connecting to MongoDB...
+node : (node:41080) [MONGOOSE] Warning: Duplicate 
+schema index on {"email":1} found. This is often due 
+to declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+At line:1 char:1
++ node scripts/seedPortalData.js 2>&1 | Out-File 
+-Encoding utf8 seed_ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:4 
+   1080) [M...dex definition.:String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the 
+warning was created)
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"invoiceNumber":1} found. This is often 
+due to declaring an index using both "index: true" 
+and "schema.index()". Please remove the duplicate 
+index definition.
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"invoiceDate":1} found. This is often due 
+to declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"status":1} found. This is often due to 
+declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"billNumber":1} found. This is often due 
+to declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"billDate":1} found. This is often due to 
+declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+(node:41080) [MONGOOSE] Warning: Duplicate schema 
+index on {"status":1} found. This is often due to 
+declaring an index using both "index: true" and 
+"schema.index()". Please remove the duplicate index 
+definition.
+Γ£à Connected to MongoDB
+
+Γ¥î Seed script failed: Error: No admin user found. 
+Please create one first.
+    at getAdminUser (C:\Users\Sanskriti\projects\Budg
+et_Management_System_Odoo\server\scripts\seedPortalDa
+ta.js:60:15)
+    at process.processTicksAndRejections 
+(node:internal/process/task_queues:103:5)
+    at async main (C:\Users\Sanskriti\projects\Budget
+_Management_System_Odoo\server\scripts\seedPortalData
+.js:373:27)

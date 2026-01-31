@@ -3,6 +3,7 @@ import { ChevronDown, Home, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import toast from 'react-hot-toast';
+import PortalHeader from './portal/PortalHeader';
 
 const menuData = {
   Account: [
@@ -80,6 +81,11 @@ export default function Header() {
   const headerRef = useRef(null);
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+
+  // Render PortalHeader for portal users
+  if (user?.accountType === 'portal') {
+    return <PortalHeader />;
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {

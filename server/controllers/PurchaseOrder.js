@@ -4,6 +4,8 @@ const AnalyticMaster = require("../models/AnalyticMaster");
 const Budget = require("../models/Budget");
 const PDFDocument = require('pdfkit');
 const mailSender = require("../utils/mailSender");
+const Product = require("../models/Product");
+const { recommendAnalytics } = require("../services/AutoAnalyticalService");
 
 // Create Purchase Order
 exports.createPurchaseOrder = async (req, res) => {
@@ -64,16 +66,62 @@ exports.createPurchaseOrder = async (req, res) => {
         // Generate PO number
         const poNumber = await PurchaseOrder.getNextPoNumber();
 
-        // Calculate line totals
-        const processedLines = lines.map(line => ({
-            productId: line.productId || null,
-            productName: line.productName || '',
-            budgetAnalyticId: line.budgetAnalyticId || null,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            lineTotal: line.quantity * line.unitPrice,
-            exceedsBudget: line.exceedsBudget || false,
-        }));
+        // Process lines with auto-analytics assignment
+        // For each line without a manually specified budgetAnalyticId,
+        // we attempt to auto-assign based on configured rules
+        const processedLines = [];
+
+        for (const line of lines) {
+            const processedLine = {
+                productId: line.productId,
+                productName: line.productName || '',
+                quantity: line.quantity,
+                unitPrice: line.unitPrice,
+                lineTotal: line.quantity * line.unitPrice,
+                autoAssigned: false,
+                analyticsOverridden: false,
+                autoAssignmentDetails: null,
+                exceedsBudget: line.exceedsBudget || false,
+            };
+
+            // Check if user manually provided analytics
+            if (line.budgetAnalyticId) {
+                // User manually selected - no auto-assignment
+                processedLine.budgetAnalyticId = line.budgetAnalyticId;
+                processedLine.autoAssigned = false;
+                console.log(`[PurchaseOrder] Line for product ${line.productId}: User provided analytics ${line.budgetAnalyticId}`);
+            } else {
+                // No analytics provided - attempt auto-assignment
+                try {
+                    const recommendation = await recommendAnalytics({
+                        productId: line.productId,
+                        partnerId: vendorId,
+                    });
+
+                    if (recommendation.analyticsId) {
+                        processedLine.budgetAnalyticId = recommendation.analyticsId;
+                        processedLine.autoAssigned = true;
+                        processedLine.autoAssignmentDetails = {
+                            ruleId: recommendation.matchedRule?.id,
+                            ruleName: recommendation.matchedRule?.name,
+                            matchedFields: recommendation.matchedRule?.matchedFields || [],
+                            explanation: recommendation.explanation,
+                        };
+                        console.log(`[PurchaseOrder] Line for product ${line.productId}: Auto-assigned analytics - ${recommendation.explanation}`);
+                    } else {
+                        // No matching rule found - leave null
+                        processedLine.budgetAnalyticId = null;
+                        console.log(`[PurchaseOrder] Line for product ${line.productId}: No auto-assignment - ${recommendation.explanation}`);
+                    }
+                } catch (autoAssignError) {
+                    console.error(`[PurchaseOrder] Auto-assignment error for product ${line.productId}:`, autoAssignError);
+                    // On error, leave analytics null - don't block PO creation
+                    processedLine.budgetAnalyticId = null;
+                }
+            }
+
+            processedLines.push(processedLine);
+        }
 
         const purchaseOrder = await PurchaseOrder.create({
             poNumber,
@@ -250,14 +298,84 @@ exports.updatePurchaseOrder = async (req, res) => {
                 }
             }
 
-            purchaseOrder.lines = lines.map(line => ({
-                productId: line.productId || null,
-                productName: line.productName || '',
-                budgetAnalyticId: line.budgetAnalyticId || null,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                lineTotal: line.quantity * line.unitPrice,
-                exceedsBudget: line.exceedsBudget || false,
+            // Process lines with override detection
+            // If a line was auto-assigned and user changes analytics, mark as overridden
+            const existingLinesMap = new Map();
+            purchaseOrder.lines.forEach((line, index) => {
+                existingLinesMap.set(line._id?.toString(), {
+                    index,
+                    autoAssigned: line.autoAssigned,
+                    budgetAnalyticId: line.budgetAnalyticId?.toString(),
+                });
+            });
+
+            purchaseOrder.lines = await Promise.all(lines.map(async (line, index) => {
+                const existingLine = existingLinesMap.get(line._id?.toString());
+
+                const processedLine = {
+                    productId: line.productId,
+                    productName: line.productName || '',
+                    quantity: line.quantity,
+                    unitPrice: line.unitPrice,
+                    lineTotal: line.quantity * line.unitPrice,
+                    exceedsBudget: line.exceedsBudget || false,
+                };
+
+                // Handle analytics assignment and override detection
+                if (line.budgetAnalyticId) {
+                    processedLine.budgetAnalyticId = line.budgetAnalyticId;
+
+                    // Check if this is a manual override of an auto-assigned value
+                    if (existingLine?.autoAssigned &&
+                        existingLine.budgetAnalyticId !== line.budgetAnalyticId) {
+                        processedLine.autoAssigned = false;
+                        processedLine.analyticsOverridden = true;
+                        processedLine.autoAssignmentDetails = null; // Clear old details
+                        console.log(`[PurchaseOrder] Line ${index}: Manual override - changed from auto-assigned ${existingLine.budgetAnalyticId} to ${line.budgetAnalyticId}`);
+                    } else if (existingLine) {
+                        // Preserve existing flags
+                        processedLine.autoAssigned = existingLine.autoAssigned || false;
+                        processedLine.analyticsOverridden = line.analyticsOverridden || false;
+                        processedLine.autoAssignmentDetails = line.autoAssignmentDetails;
+                    } else {
+                        // New line with manual analytics
+                        processedLine.autoAssigned = false;
+                        processedLine.analyticsOverridden = false;
+                    }
+                } else if (line.analyticsOverridden) {
+                    // Line was previously overridden, don't auto-assign again
+                    processedLine.budgetAnalyticId = null;
+                    processedLine.autoAssigned = false;
+                    processedLine.analyticsOverridden = true;
+                } else {
+                    // No analytics and not overridden - try auto-assignment
+                    try {
+                        const recommendation = await recommendAnalytics({
+                            productId: line.productId,
+                            partnerId: vendorId || purchaseOrder.vendorId,
+                        });
+
+                        if (recommendation.analyticsId) {
+                            processedLine.budgetAnalyticId = recommendation.analyticsId;
+                            processedLine.autoAssigned = true;
+                            processedLine.analyticsOverridden = false;
+                            processedLine.autoAssignmentDetails = {
+                                ruleId: recommendation.matchedRule?.id,
+                                ruleName: recommendation.matchedRule?.name,
+                                matchedFields: recommendation.matchedRule?.matchedFields || [],
+                                explanation: recommendation.explanation,
+                            };
+                        } else {
+                            processedLine.budgetAnalyticId = null;
+                            processedLine.autoAssigned = false;
+                        }
+                    } catch (err) {
+                        console.error(`[PurchaseOrder] Auto-assignment error during update:`, err);
+                        processedLine.budgetAnalyticId = null;
+                    }
+                }
+
+                return processedLine;
             }));
         }
 
@@ -404,8 +522,8 @@ exports.autoAssignAnalytics = async (req, res) => {
         const { productName, amount } = req.body;
 
         // Get all active analytics categories
-        const analyticsCategories = await AnalyticMaster.find({ 
-            status: { $ne: 'archived' } 
+        const analyticsCategories = await AnalyticMaster.find({
+            status: { $ne: 'archived' }
         });
 
         if (analyticsCategories.length === 0) {

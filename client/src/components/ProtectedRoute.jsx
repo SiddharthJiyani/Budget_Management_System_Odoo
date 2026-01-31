@@ -24,7 +24,7 @@ export function ProtectedRoute({ children }) {
 }
 
 export function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -35,6 +35,10 @@ export function PublicRoute({ children }) {
   }
 
   if (isAuthenticated) {
+    // Redirect based on user account type
+    if (user?.accountType === 'portal') {
+      return <Navigate to="/portal/invoices" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -44,6 +44,12 @@ const userSchema = new mongoose.Schema({
         default: 'portal',
         required: [true]
     },
+    // Link portal users to their Contact record (for invoice/bill filtering)
+    contactId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contact",
+        default: null,
+    },
     profilePhoto: {
         type: String,
         default: "https://t4.ftcdn.net/jpg/05/49/98/39/240_F_549983970_bRCkYfk0P6PP5fKbMhZMIb07mCJ6esXL.jpg"
@@ -52,7 +58,7 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
-    token:{
+    token: {
         type: String
     }
 

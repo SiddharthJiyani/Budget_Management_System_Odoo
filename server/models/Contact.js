@@ -71,7 +71,6 @@ const contactSchema = new mongoose.Schema({
 
 // Indexes for better query performance
 contactSchema.index({ name: 1, status: 1 });
-contactSchema.index({ email: 1 });
 contactSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Contact", contactSchema);

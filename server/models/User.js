@@ -40,8 +40,8 @@ const userSchema = new mongoose.Schema({
     },
     accountType: {
         type: String,
-        enum: ['customer', 'admin'],
-        default: 'user',
+        enum: ['portal', 'admin'],
+        default: 'portal',
         required: [true]
     },
     profilePhoto: {

@@ -92,9 +92,21 @@ export default function CreateUser() {
     setIsLoading(true);
 
     try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        toast.error('You must be logged in as admin to create users');
+        navigate('/login');
+        return;
+      }
+
       const response = await fetch(`${API_URL}/create-user`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           firstName: formData.firstName,
           lastName: formData.lastName,

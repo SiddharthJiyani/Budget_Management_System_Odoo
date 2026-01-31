@@ -82,6 +82,7 @@ exports.getAllProducts = async (req, res) => {
             .limit(limit * 1)
             .skip((page - 1) * limit);
 
+
         const count = await Product.countDocuments(query);
 
         return res.status(200).json({

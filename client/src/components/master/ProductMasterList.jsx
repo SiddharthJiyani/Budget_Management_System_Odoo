@@ -24,6 +24,7 @@ export default function ProductMasterList({ onNew, onEdit, onHome }) {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
+      console.log('prod data', data);
 
       if (data.success) {
         setProducts(data.data.products || []);

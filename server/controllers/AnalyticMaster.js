@@ -296,3 +296,82 @@ exports.permanentDeleteAnalyticMaster = async (req, res) => {
     }
 };
 
+// Get analytics by date range for budget creation
+exports.getAnalyticsByDateRange = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({
+                success: false,
+                message: "Start date and end date are required",
+            });
+        }
+
+        // Validate dates
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid date format",
+            });
+        }
+
+        if (end < start) {
+            return res.status(400).json({
+                success: false,
+                message: "End date must be greater than or equal to start date",
+            });
+        }
+
+        // Query analytics where their date range overlaps with the budget period
+        // An analytic overlaps if:
+        // - It starts before the budget ends AND
+        // - It ends after the budget starts
+        const analytics = await AnalyticMaster.find({
+            status: { $ne: 'archived' },
+            $or: [
+                // Analytics with date ranges that overlap
+                {
+                    startDate: { $lte: end },
+                    endDate: { $gte: start }
+                },
+                // Analytics without dates (include all)
+                {
+                    startDate: null,
+                    endDate: null
+                },
+                // Analytics with only start date
+                {
+                    startDate: { $lte: end },
+                    endDate: null
+                },
+                // Analytics with only end date
+                {
+                    startDate: null,
+                    endDate: { $gte: start }
+                }
+            ]
+        })
+        .populate('productCategory', 'name color')
+        .populate('createdBy', 'firstName lastName email')
+        .sort({ name: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: `Found ${analytics.length} analytics for the selected period`,
+            data: analytics,
+        });
+    } catch (error) {
+        console.error("Get analytics by date range error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error retrieving analytics by date range",
+            error: error.message,
+        });
+    }
+};
+
+

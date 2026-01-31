@@ -9,9 +9,11 @@ const {
     deleteAnalyticMaster,
     unarchiveAnalyticMaster,
     permanentDeleteAnalyticMaster,
+    getAnalyticsByDateRange,
 } = require("../controllers/AnalyticMaster");
 
 // All routes require authentication
+router.get("/by-date-range", auth, getAnalyticsByDateRange);
 router.post("/", auth, createAnalyticMaster);
 router.get("/", auth, getAllAnalyticMasters);
 router.get("/:id", auth, getAnalyticMasterById);

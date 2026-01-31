@@ -46,8 +46,16 @@ export const API_ENDPOINTS = {
     ANALYTICS: {
         BASE: `${API_BASE_URL}/api/analytics`,
         BY_ID: (id) => `${API_BASE_URL}/api/analytics/${id}`,
+        BY_DATE_RANGE: `${API_BASE_URL}/api/analytics/by-date-range`,
         UNARCHIVE: (id) => `${API_BASE_URL}/api/analytics/${id}/unarchive`,
         PERMANENT_DELETE: (id) => `${API_BASE_URL}/api/analytics/${id}/permanent`,
+    },
+    
+    BUDGETS: {
+        BASE: `${API_BASE_URL}/api/budgets`,
+        BY_ID: (id) => `${API_BASE_URL}/api/budgets/${id}`,
+        UPDATE_STATUS: (id) => `${API_BASE_URL}/api/budgets/${id}/status`,
+        REVISE: (id) => `${API_BASE_URL}/api/budgets/${id}/revise`,
     },
     
     // File upload endpoints

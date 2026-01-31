@@ -32,13 +32,15 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
       });
       const data = await response.json();
 
+
       if (data.success) {
         const categories = data.data.map(cat => ({
           value: cat._id,
           label: cat.name,
         }));
+        console.log('cate ', categories);
         setCategoryOptions(categories);
-        
+
         if (categories.length === 0) {
           toast('No categories found. Create one to get started!', { icon: 'ℹ️' });
         }
@@ -252,7 +254,7 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
                     Create New
                   </button>
                 </div>
-                
+
                 {showCreateCategory ? (
                   <div className="flex gap-2">
                     <Input

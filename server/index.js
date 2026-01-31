@@ -45,6 +45,7 @@ const productRoutes = require("./routes/product");
 const categoryRoutes = require("./routes/category");
 const partnerTagRoutes = require("./routes/partnerTag");
 const analyticMasterRoutes = require("./routes/analyticMaster");
+const budgetRoutes = require("./routes/budget");
 
 app.use("/api/auth", userRoutes);
 app.use("/api/files", fileUploadRoutes);
@@ -55,6 +56,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/partner-tags", partnerTagRoutes);
 app.use("/api/analytics", analyticMasterRoutes);
+app.use("/api/budgets", budgetRoutes);
 
 
 // Start the server

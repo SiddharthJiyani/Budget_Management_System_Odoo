@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { auth } = require("../middleware/auth");
+const { auth, isAdmin } = require("../middleware/auth");
 const {
     createPartnerTag,
     getAllPartnerTags,
@@ -9,11 +9,11 @@ const {
     deletePartnerTag,
 } = require("../controllers/PartnerTag");
 
-// All routes require authentication
-router.post("/", auth, createPartnerTag);
-router.get("/", auth, getAllPartnerTags);
-router.get("/:id", auth, getPartnerTagById);
-router.put("/:id", auth, updatePartnerTag);
-router.delete("/:id", auth, deletePartnerTag);
+// All routes require authentication and admin role
+router.post("/", auth, isAdmin, createPartnerTag);
+router.get("/", auth, isAdmin, getAllPartnerTags);
+router.get("/:id", auth, isAdmin, getPartnerTagById);
+router.put("/:id", auth, isAdmin, updatePartnerTag);
+router.delete("/:id", auth, isAdmin, deletePartnerTag);
 
 module.exports = router;

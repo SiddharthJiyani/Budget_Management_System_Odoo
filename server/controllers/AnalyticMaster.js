@@ -4,7 +4,7 @@ const Category = require("../models/Category");
 // Create Analytic Master
 exports.createAnalyticMaster = async (req, res) => {
     try {
-        const { name, description, startDate, endDate, productCategory, type } = req.body;
+        const { name, description, startDate, endDate, type } = req.body;
 
         if (!name) {
             return res.status(400).json({
@@ -29,35 +29,15 @@ exports.createAnalyticMaster = async (req, res) => {
             });
         }
 
-        // Process category if provided
-        let categoryId = null;
-        if (productCategory) {
-            if (typeof productCategory === 'string') {
-                let categoryDoc = await Category.findOne({ name: productCategory });
-                if (!categoryDoc) {
-                    categoryDoc = await Category.create({
-                        name: productCategory,
-                        createdBy: req.user.id,
-                    });
-                }
-                categoryId = categoryDoc._id;
-            } else {
-                categoryId = productCategory;
-            }
-        }
-
         const analytic = await AnalyticMaster.create({
             name,
             description,
             startDate,
             endDate,
-            productCategory: categoryId,
             type: type || 'Expense',
             status: 'new',
             createdBy: req.user.id,
         });
-
-        await analytic.populate('productCategory');
 
         return res.status(201).json({
             success: true,
@@ -77,21 +57,17 @@ exports.createAnalyticMaster = async (req, res) => {
 // Get all analytics with filtering
 exports.getAllAnalyticMasters = async (req, res) => {
     try {
-        const { status, category, search, page = 1, limit = 10 } = req.query;
+        const { status, search, page = 1, limit = 10 } = req.query;
 
         let query = {};
         if (status && status !== 'all') {
             query.status = status;
-        }
-        if (category) {
-            query.productCategory = category;
         }
         if (search) {
             query.name = { $regex: search, $options: 'i' };
         }
 
         const analytics = await AnalyticMaster.find(query)
-            .populate('productCategory', 'name color')
             .populate('createdBy', 'firstName lastName email')
             .sort({ createdAt: -1 })
             .limit(limit * 1)
@@ -125,7 +101,6 @@ exports.getAnalyticMasterById = async (req, res) => {
         const { id } = req.params;
 
         const analytic = await AnalyticMaster.findById(id)
-            .populate('productCategory', 'name color description')
             .populate('createdBy', 'firstName lastName email');
 
         if (!analytic) {
@@ -154,7 +129,7 @@ exports.getAnalyticMasterById = async (req, res) => {
 exports.updateAnalyticMaster = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, startDate, endDate, productCategory, status, type } = req.body;
+        const { name, description, startDate, endDate, status, type } = req.body;
 
         const analytic = await AnalyticMaster.findById(id);
         if (!analytic) {
@@ -182,22 +157,6 @@ exports.updateAnalyticMaster = async (req, res) => {
             });
         }
 
-        // Process category if provided
-        if (productCategory) {
-            let categoryId = productCategory;
-            if (typeof productCategory === 'string') {
-                let categoryDoc = await Category.findOne({ name: productCategory });
-                if (!categoryDoc) {
-                    categoryDoc = await Category.create({
-                        name: productCategory,
-                        createdBy: req.user.id,
-                    });
-                }
-                categoryId = categoryDoc._id;
-            }
-            analytic.productCategory = categoryId;
-        }
-
         if (name) analytic.name = name;
         if (description !== undefined) analytic.description = description;
         if (startDate) analytic.startDate = startDate;
@@ -206,7 +165,6 @@ exports.updateAnalyticMaster = async (req, res) => {
         if (type) analytic.type = type;
 
         await analytic.save();
-        await analytic.populate('productCategory');
 
         return res.status(200).json({
             success: true,
@@ -373,7 +331,7 @@ exports.getAnalyticsByDateRange = async (req, res) => {
                 }
             ]
         })
-        .populate('productCategory', 'name color')
+
         .populate('createdBy', 'firstName lastName email')
         .sort({ name: 1 });
 

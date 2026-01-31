@@ -5,7 +5,7 @@ import BudgetLoader from '../ui/BudgetLoader';
 import toast from 'react-hot-toast';
 import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 
-export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
+export default function BudgetMasterForm({ recordId, onBack, onHome, onNew, onEdit }) {
   const [formData, setFormData] = useState({
     name: '',
     startDate: '',
@@ -18,6 +18,8 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingAnalytics, setIsFetchingAnalytics] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedAnalyticDetails, setSelectedAnalyticDetails] = useState(null);
 
   // Load existing budget if recordId provided
   useEffect(() => {
@@ -156,11 +158,27 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
 
     setIsLoading(true);
     try {
+      // Prepare budget lines - extract only IDs for analyticMasterId, preserve _id
+      const linesToSave = budgetLines.map(line => {
+        const lineData = {
+          analyticMasterId: line.analyticMasterId?._id || line.analyticMasterId, // Extract ID if it's populated
+          budgetedAmount: line.budgetedAmount,
+          achievedAmount: line.achievedAmount || 0,
+          achievedPercent: line.achievedPercent || 0,
+          amountToAchieve: line.amountToAchieve || 0,
+        };
+        // Preserve the _id if it exists (for updates)
+        if (line._id) {
+          lineData._id = line._id;
+        }
+        return lineData;
+      });
+
       const budgetData = {
         name: formData.name,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        lines: budgetLines,
+        lines: linesToSave,
       };
 
       const url = recordId
@@ -178,10 +196,12 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
 
       if (data.success) {
         toast.success(`Budget ${recordId ? 'updated' : 'created'} successfully!`);
-        if (!recordId) {
-          // Navigate to the newly created budget
-          setBudget(data.data);
-          setStatus(data.data.status);
+        // Update local state with saved data
+        setBudget(data.data);
+        setStatus(data.data.status);
+        // Reload the budget to get fresh data from server
+        if (recordId) {
+          await loadBudget();
         }
       } else {
         toast.error(data.message || 'Failed to save budget');
@@ -203,18 +223,23 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
     setIsLoading(true);
     try {
       const id = budget?._id || recordId;
+      // If this is a revised budget, set status to 'revised', otherwise 'confirmed'
+      const newStatus = budget?.isRevised ? 'revised' : 'confirmed';
+      
       const response = await fetch(API_ENDPOINTS.BUDGETS.UPDATE_STATUS(id), {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status: 'confirmed' }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setStatus('confirmed');
+        setStatus(newStatus);
         setBudget(data.data);
-        toast.success('Budget confirmed successfully!');
+        // Reload budget to get fresh data from server
+        await loadBudget();
+        toast.success(`Budget ${newStatus} successfully!`);
       } else {
         toast.error(data.message || 'Failed to confirm budget');
       }
@@ -244,15 +269,10 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
 
       if (data.success) {
         toast.success('Revised budget created successfully!');
-        // Navigate to the revised budget
-        setBudget(data.data);
-        setFormData({
-          name: data.data.name,
-          startDate: data.data.startDate.split('T')[0],
-          endDate: data.data.endDate.split('T')[0],
-        });
-        setBudgetLines(data.data.lines);
-        setStatus(data.data.status);
+        // Navigate to the revised budget using onEdit callback
+        if (onEdit && data.data._id) {
+          onEdit(data.data._id);
+        }
       } else {
         toast.error(data.message || 'Failed to create revision');
       }
@@ -291,8 +311,37 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
     }
   };
 
-  const canEdit = status === 'draft' || status === 'revised';
-  const showAchievedData = status === 'confirmed';
+  const handleViewDetails = async (analyticId, analyticName) => {
+    const budgetId = budget?._id || recordId;
+    if (!budgetId) {
+      toast.error('Budget not found');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        API_ENDPOINTS.BUDGETS.ANALYTIC_DETAILS(budgetId, analyticId),
+        { headers: getAuthHeaders() }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedAnalyticDetails({
+          ...data.data,
+          analyticName,
+        });
+        setShowDetailsModal(true);
+      } else {
+        toast.error(data.message || 'Failed to fetch details');
+      }
+    } catch (error) {
+      console.error('Fetch analytic details error:', error);
+      toast.error('Failed to fetch details');
+    }
+  };
+
+  const canEdit = status === 'draft';
+  const showAchievedData = status === 'confirmed' || status === 'revised';
 
   return (
     <div className="animate-fadeIn">
@@ -326,7 +375,7 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
               variant="primary"
               size="sm"
               isLoading={isLoading}
-              disabled={isLoading || status === 'confirmed'}
+              disabled={isLoading || status === 'confirmed' || status === 'revised'}
             >
               {isLoading ? 'Confirming...' : 'Confirm'}
             </Button>
@@ -361,15 +410,17 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
             <span className="text-muted-foreground/40">→</span>
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${status === 'confirmed'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground/60'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground/60'
                 }`}
             >
               Confirm
             </span>
             <span className="text-muted-foreground/40">→</span>
             <span
-              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${status === 'revised' ? 'text-primary' : 'text-muted-foreground/60'
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${status === 'revised'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground/60'
                 }`}
             >
               Revised
@@ -440,14 +491,42 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
               )}
             </div>
 
-            {/* Revision Context */}
+            {/* Revision Context - Show original budget link when viewing revised budget */}
             {budget?.originalBudgetId && (
               <div className="flex items-baseline gap-3">
                 <label className="text-xs font-medium text-destructive uppercase tracking-wider min-w-[110px]">
                   Revision of
                 </label>
-                <span className="text-sm text-primary hover:underline cursor-pointer">
-                  Original Budget
+                <span 
+                  className="text-sm text-primary hover:underline cursor-pointer"
+                  onClick={() => {
+                    const originalId = budget.originalBudgetId?._id || budget.originalBudgetId;
+                    if (originalId) {
+                      onEdit(originalId);
+                    }
+                  }}
+                >
+                  {budget.originalBudgetId?.name || 'Original Budget'}
+                </span>
+              </div>
+            )}
+
+            {/* Show revised budget link when viewing original budget */}
+            {budget?.revisedBudgetId && (
+              <div className="flex items-baseline gap-3">
+                <label className="text-xs font-medium text-success uppercase tracking-wider min-w-[110px]">
+                  Revised Budget
+                </label>
+                <span 
+                  className="text-sm text-primary hover:underline cursor-pointer"
+                  onClick={() => {
+                    const revisedId = budget.revisedBudgetId?._id || budget.revisedBudgetId;
+                    if (revisedId) {
+                      onEdit(revisedId);
+                    }
+                  }}
+                >
+                  {budget.revisedBudgetId?.name || 'Revised Budget'}
                 </span>
               </div>
             )}
@@ -498,90 +577,92 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
                 <tbody>
                   {budgetLines.map((line, index) => {
                     // Get analytic data - either from populated analyticMasterId or local analytics array
-                    const analyticData = line.analyticMasterId?._id 
+                    const analyticData = line.analyticMasterId?._id
                       ? line.analyticMasterId  // Populated from backend
                       : analytics.find(a => a._id === line.analyticMasterId); // Local array for new budgets
-                    
+
                     const analyticName = analyticData?.name || 'Unknown';
                     const analyticType = analyticData?.type || 'Expense';
-                    
+
                     return (
-                    <tr
-                      key={line._id || index}
-                      className={`border-b border-border/30 transition-colors ${analyticType === 'Income'
+                      <tr
+                        key={line._id || index}
+                        className={`border-b border-border/30 transition-colors ${analyticType === 'Income'
                           ? 'bg-success/[0.05] hover:bg-success/[0.08]'
                           : 'bg-accent/[0.05] hover:bg-accent/[0.08]'
-                        }`}
-                    >
-                      {/* Analytic Name */}
-                      <td className="px-4 py-2 text-sm text-foreground">
-                        {analyticName}
-                      </td>
+                          }`}
+                      >
+                        {/* Analytic Name */}
+                        <td className="px-4 py-2 text-sm text-foreground">
+                          {analyticName}
+                        </td>
 
-                      {/* Type - Read-only from AnalyticMaster */}
-                      <td className="px-4 py-2 text-sm text-foreground">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          analyticType === 'Income' 
-                            ? 'bg-success/20 text-success' 
-                            : 'bg-accent/20 text-accent-foreground'
-                        }`}>
-                          {analyticType}
-                        </span>
-                      </td>
-
-                      {/* Budgeted Amount */}
-                      <td className="px-4 py-2 text-sm text-right">
-                        {canEdit ? (
-                          <input
-                            type="number"
-                            value={line.budgetedAmount}
-                            onChange={(e) => handleLineChange(index, 'budgetedAmount', e.target.value)}
-                            className="w-32 px-2 py-1 rounded bg-input text-foreground border border-border text-right"
-                            min="0"
-                            step="0.01"
-                          />
-                        ) : (
-                          <span className="font-medium text-foreground">
-                            {line.budgetedAmount.toLocaleString()}/-
+                        {/* Type - Read-only from AnalyticMaster */}
+                        <td className="px-4 py-2 text-sm text-foreground">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${analyticType === 'Income'
+                              ? 'bg-success/20 text-success'
+                              : 'bg-accent/20 text-accent-foreground'
+                            }`}>
+                            {analyticType}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Achieved columns (only when confirmed) */}
-                      {showAchievedData && (
-                        <>
-                          {/* Achieved Amount */}
-                          <td className="px-4 py-2 text-sm text-right">
-                            <div className="inline-flex items-center gap-2">
+                        {/* Budgeted Amount */}
+                        <td className="px-4 py-2 text-sm text-right">
+                          {canEdit ? (
+                            <input
+                              type="number"
+                              value={line.budgetedAmount}
+                              onChange={(e) => handleLineChange(index, 'budgetedAmount', e.target.value)}
+                              className="w-32 px-2 py-1 rounded bg-input text-foreground border border-border text-right"
+                              min="0"
+                              step="0.01"
+                            />
+                          ) : (
+                            <span className="font-medium text-foreground">
+                              {line.budgetedAmount.toLocaleString()}/-
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Achieved columns (only when confirmed) */}
+                        {showAchievedData && (
+                          <>
+                            {/* Achieved Amount */}
+                            <td className="px-4 py-2 text-sm text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <span className="font-medium text-foreground">
+                                  {line.achievedAmount?.toLocaleString() || '0'}/-
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const analyticId = line.analyticMasterId?._id || line.analyticMasterId;
+                                    handleViewDetails(analyticId, analyticName);
+                                  }}
+                                  className="text-xs text-primary hover:underline font-medium"
+                                >
+                                  View
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Achieved % */}
+                            <td className="px-4 py-2 text-sm text-right">
                               <span className="font-medium text-foreground">
-                                {line.achievedAmount.toLocaleString()}/-
+                                {line.achievedPercent?.toFixed(2) || '0.00'} %
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => toast.info('View achievement details')}
-                                className="text-xs text-primary hover:underline font-medium"
-                              >
-                                View
-                              </button>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Achieved % */}
-                          <td className="px-4 py-2 text-sm text-right">
-                            <span className="font-medium text-foreground">
-                              {line.achievedPercent.toFixed(2)} %
-                            </span>
-                          </td>
-
-                          {/* Amount to Achieve */}
-                          <td className="px-4 py-2 text-sm text-right">
-                            <span className="font-medium text-foreground">
-                              {line.amountToAchieve.toLocaleString()}/-
-                            </span>
-                          </td>
-                        </>
-                      )}
-                    </tr>
+                            {/* Amount to Achieve */}
+                            <td className="px-4 py-2 text-sm text-right">
+                              <span className="font-medium text-foreground">
+                                {line.amountToAchieve?.toLocaleString() || '0'}/-
+                              </span>
+                            </td>
+                          </>
+                        )}
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -590,6 +671,84 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
           )}
         </div>
       </Card>
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedAnalyticDetails && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-4xl w-full max-h-[80vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    {selectedAnalyticDetails.analyticName} - Details
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAnalyticDetails.analytic.type} | Period: {new Date(selectedAnalyticDetails.budgetPeriod.startDate).toLocaleDateString()} - {new Date(selectedAnalyticDetails.budgetPeriod.endDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mb-4 p-4 bg-muted/20 rounded-lg">
+                <p className="text-lg font-semibold text-primary">
+                  Total Achieved: {selectedAnalyticDetails.totalAmount.toLocaleString()}/-
+                </p>
+              </div>
+
+              {selectedAnalyticDetails.details.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No {selectedAnalyticDetails.analytic.type === 'Income' ? 'invoices' : 'bills'} found for this period
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {selectedAnalyticDetails.details.map((item, idx) => (
+                    <div key={idx} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="font-semibold text-foreground">{item.type} #{item.number}</span>
+                          <span className="mx-2 text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">{item.partner}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-foreground">{item.amount.toLocaleString()}/-</p>
+                          <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${item.status === 'paid' ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
+                          }`}>
+                          {item.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1">
+                        {item.lines.map((line, lineIdx) => (
+                          <div key={lineIdx} className="text-sm text-muted-foreground flex items-center justify-between">
+                            <span>
+                              {line.product} {line.description && `(${line.description})`} - {line.quantity} × {line.unitPrice}
+                            </span>
+                            <span className="font-medium">{line.subtotal.toLocaleString()}/-</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <Button onClick={() => setShowDetailsModal(false)} variant="outline">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

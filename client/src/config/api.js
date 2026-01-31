@@ -56,6 +56,7 @@ export const API_ENDPOINTS = {
         BY_ID: (id) => `${API_BASE_URL}/api/budgets/${id}`,
         UPDATE_STATUS: (id) => `${API_BASE_URL}/api/budgets/${id}/status`,
         REVISE: (id) => `${API_BASE_URL}/api/budgets/${id}/revise`,
+        ANALYTIC_DETAILS: (budgetId, analyticId) => `${API_BASE_URL}/api/budgets/${budgetId}/analytic/${analyticId}/details`,
     },
     
     // File upload endpoints

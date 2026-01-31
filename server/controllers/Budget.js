@@ -1,5 +1,7 @@
 const Budget = require("../models/Budget");
 const AnalyticMaster = require("../models/AnalyticMaster");
+const Invoice = require("../models/Invoice");
+const Bill = require("../models/Bill");
 
 // Create Budget
 exports.createBudget = async (req, res) => {
@@ -53,7 +55,11 @@ exports.getAllBudgets = async (req, res) => {
     try {
         const { status, search, page = 1, limit = 10 } = req.query;
 
-        let query = { createdBy: req.user.id };
+        // Admin can see all budgets, portal users only see their own
+        let query = {};
+        if (req.user.accountType !== 'admin') {
+            query.createdBy = req.user.id;
+        }
         
         if (status && status !== 'all') {
             query.status = status;
@@ -133,26 +139,92 @@ exports.getBudgetById = async (req, res) => {
         });
 
         // Merge: include all current analytics, preserve budgeted amounts for existing ones
-        const mergedLines = currentAnalytics.map(analytic => {
+        const mergedLines = await Promise.all(currentAnalytics.map(async (analytic) => {
             const existingLine = existingLinesMap.get(analytic._id.toString());
             
+            // Calculate achieved amount from invoices/bills for this analytic
+            let achievedAmount = 0;
+            
+            if (analytic.type === 'Income') {
+                // Calculate from invoices (sales)
+                const invoices = await Invoice.aggregate([
+                    {
+                        $match: {
+                            invoiceDate: { 
+                                $gte: budget.startDate, 
+                                $lte: budget.endDate 
+                            },
+                            status: { $in: ['paid', 'sent'] } // Only paid or sent invoices
+                        }
+                    },
+                    { $unwind: '$lines' },
+                    {
+                        $match: {
+                            'lines.analyticMaster': analytic._id
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            total: { $sum: '$lines.subtotal' }
+                        }
+                    }
+                ]);
+                
+                achievedAmount = invoices.length > 0 ? invoices[0].total : 0;
+            } else {
+                // Calculate from bills (purchases/expenses)
+                const bills = await Bill.aggregate([
+                    {
+                        $match: {
+                            billDate: { 
+                                $gte: budget.startDate, 
+                                $lte: budget.endDate 
+                            },
+                            status: { $in: ['paid', 'confirmed'] } // Only paid or confirmed bills
+                        }
+                    },
+                    { $unwind: '$lines' },
+                    {
+                        $match: {
+                            'lines.analyticMaster': analytic._id
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            total: { $sum: '$lines.subtotal' }
+                        }
+                    }
+                ]);
+                
+                achievedAmount = bills.length > 0 ? bills[0].total : 0;
+            }
+            
+            const budgetedAmount = existingLine?.budgetedAmount || 0;
+            const achievedPercent = budgetedAmount > 0 ? (achievedAmount / budgetedAmount) * 100 : 0;
+            const amountToAchieve = budgetedAmount - achievedAmount;
+            
             if (existingLine) {
-                // Keep existing amounts, update reference to populated object
+                // Keep existing budgeted amount, calculate achieved values
                 return {
                     ...existingLine.toObject(),
                     analyticMasterId: analytic, // Use current analytic data
+                    achievedAmount,
+                    achievedPercent,
+                    amountToAchieve,
                 };
             } else {
-                // New analytic added after budget creation - add with zero amounts
+                // New analytic added after budget creation - add with zero budgeted amount
                 return {
                     analyticMasterId: analytic,
                     budgetedAmount: 0,
-                    achievedAmount: 0,
+                    achievedAmount,
                     achievedPercent: 0,
                     amountToAchieve: 0,
                 };
             }
-        });
+        }));
 
         // Return budget with dynamically updated lines
         const budgetWithUpdatedLines = budget.toObject();
@@ -187,11 +259,11 @@ exports.updateBudget = async (req, res) => {
             });
         }
 
-        // Check if budget can be edited (only draft and revised can be edited)
-        if (budget.status !== 'draft' && budget.status !== 'revised') {
+        // Check if budget can be edited (only draft budgets can be edited)
+        if (budget.status !== 'draft') {
             return res.status(400).json({
                 success: false,
-                message: "Only draft or revised budgets can be edited",
+                message: "Only draft budgets can be edited",
             });
         }
 
@@ -390,6 +462,123 @@ exports.deleteBudget = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Error archiving budget",
+            error: error.message,
+        });
+    }
+};
+
+// Get invoice/bill details for a specific analytic in budget period
+exports.getAnalyticDetails = async (req, res) => {
+    try {
+        const { budgetId, analyticId } = req.params;
+
+        const budget = await Budget.findById(budgetId);
+        if (!budget) {
+            return res.status(404).json({
+                success: false,
+                message: "Budget not found",
+            });
+        }
+
+        const analytic = await AnalyticMaster.findById(analyticId);
+        if (!analytic) {
+            return res.status(404).json({
+                success: false,
+                message: "Analytic not found",
+            });
+        }
+
+        let details = [];
+
+        if (analytic.type === 'Income') {
+            // Get invoices for this analytic in budget period
+            const invoices = await Invoice.find({
+                invoiceDate: { 
+                    $gte: budget.startDate, 
+                    $lte: budget.endDate 
+                },
+                'lines.analyticMaster': analyticId,
+                status: { $in: ['paid', 'sent'] }
+            })
+            .populate('customer', 'name email')
+            .populate('lines.product', 'name')
+            .select('invoiceNumber invoiceDate totalAmount status lines');
+
+            details = invoices.map(invoice => ({
+                type: 'Invoice',
+                number: invoice.invoiceNumber,
+                date: invoice.invoiceDate,
+                partner: invoice.customer?.name || 'Unknown',
+                status: invoice.status,
+                lines: invoice.lines
+                    .filter(line => line.analyticMaster.toString() === analyticId)
+                    .map(line => ({
+                        product: line.product?.name || 'Unknown',
+                        description: line.description,
+                        quantity: line.quantity,
+                        unitPrice: line.unitPrice,
+                        subtotal: line.subtotal
+                    })),
+                amount: invoice.lines
+                    .filter(line => line.analyticMaster.toString() === analyticId)
+                    .reduce((sum, line) => sum + line.subtotal, 0)
+            }));
+        } else {
+            // Get bills for this analytic in budget period
+            const bills = await Bill.find({
+                billDate: { 
+                    $gte: budget.startDate, 
+                    $lte: budget.endDate 
+                },
+                'lines.analyticMaster': analyticId,
+                status: { $in: ['paid', 'confirmed'] }
+            })
+            .populate('vendor', 'name email')
+            .populate('lines.product', 'name')
+            .select('billNumber billDate totalAmount status lines');
+
+            details = bills.map(bill => ({
+                type: 'Bill',
+                number: bill.billNumber,
+                date: bill.billDate,
+                partner: bill.vendor?.name || 'Unknown',
+                status: bill.status,
+                lines: bill.lines
+                    .filter(line => line.analyticMaster.toString() === analyticId)
+                    .map(line => ({
+                        product: line.product?.name || 'Unknown',
+                        description: line.description,
+                        quantity: line.quantity,
+                        unitPrice: line.unitPrice,
+                        subtotal: line.subtotal
+                    })),
+                amount: bill.lines
+                    .filter(line => line.analyticMaster.toString() === analyticId)
+                    .reduce((sum, line) => sum + line.subtotal, 0)
+            }));
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Analytic details retrieved successfully",
+            data: {
+                analytic: {
+                    name: analytic.name,
+                    type: analytic.type
+                },
+                budgetPeriod: {
+                    startDate: budget.startDate,
+                    endDate: budget.endDate
+                },
+                details,
+                totalAmount: details.reduce((sum, item) => sum + item.amount, 0)
+            },
+        });
+    } catch (error) {
+        console.error("Get analytic details error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error retrieving analytic details",
             error: error.message,
         });
     }

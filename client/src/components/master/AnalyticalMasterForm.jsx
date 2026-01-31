@@ -12,35 +12,10 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
     description: '',
     startDate: '',
     endDate: '',
-    productCategory: '',
     type: 'Expense',
   });
-  const [categoryOptions, setCategoryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-
-  // Load categories on mount
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const response = await fetch(API_ENDPOINTS.CATEGORIES.BASE, {
-        headers: getAuthHeaders(),
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setCategoryOptions(data.data.map(cat => ({
-          value: cat._id,
-          label: cat.name,
-        })));
-      }
-    } catch (error) {
-      console.error('Load categories error:', error);
-    }
-  };
 
   useEffect(() => {
     if (recordId) {
@@ -62,7 +37,6 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
           description: analytic.description || '',
           startDate: analytic.startDate ? analytic.startDate.split('T')[0] : '',
           endDate: analytic.endDate ? analytic.endDate.split('T')[0] : '',
-          productCategory: analytic.productCategory?._id || '',
           type: analytic.type || 'Expense',
         });
       } else {
@@ -117,7 +91,6 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
         description: formData.description,
         startDate: formData.startDate || null,
         endDate: formData.endDate || null,
-        productCategory: formData.productCategory || null,
         type: formData.type,
       };
 
@@ -258,27 +231,17 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Select
-                label="Product Category"
-                value={formData.productCategory}
-                onChange={(e) => handleChange('productCategory', e.target.value)}
-                options={categoryOptions}
-                placeholder="Select product category (optional)"
-              />
-              
-              <Select
-                label="Type"
-                value={formData.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-                options={[
-                  { value: 'Income', label: 'Income' },
-                  { value: 'Expense', label: 'Expense' },
-                ]}
-                placeholder="Select type"
-                required
-              />
-            </div>
+            <Select
+              label="Type"
+              value={formData.type}
+              onChange={(e) => handleChange('type', e.target.value)}
+              options={[
+                { value: 'Income', label: 'Income' },
+                { value: 'Expense', label: 'Expense' },
+              ]}
+              placeholder="Select type"
+              required
+            />
           </div>
         </form>
       </Card>

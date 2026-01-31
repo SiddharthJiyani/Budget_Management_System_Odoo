@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { auth } = require("../middleware/auth");
+const { auth, isAdmin } = require("../middleware/auth");
 const {
     createContact,
     getAllContacts,
@@ -12,14 +12,14 @@ const {
     permanentDeleteContact,
 } = require("../controllers/Contact");
 
-// All routes require authentication
-router.post("/", auth, createContact);
-router.get("/", auth, getAllContacts);
-router.get("/:id", auth, getContactById);
-router.put("/:id", auth, updateContact);
-router.delete("/:id", auth, deleteContact);
-router.post("/:id/image", auth, uploadContactImage);
-router.post("/:id/unarchive", auth, unarchiveContact);
-router.delete("/:id/permanent", auth, permanentDeleteContact);
+// All routes require authentication and admin role
+router.post("/", auth, isAdmin, createContact);
+router.get("/", auth, isAdmin, getAllContacts);
+router.get("/:id", auth, isAdmin, getContactById);
+router.put("/:id", auth, isAdmin, updateContact);
+router.delete("/:id", auth, isAdmin, deleteContact);
+router.post("/:id/image", auth, isAdmin, uploadContactImage);
+router.post("/:id/unarchive", auth, isAdmin, unarchiveContact);
+router.delete("/:id/permanent", auth, isAdmin, permanentDeleteContact);
 
 module.exports = router;

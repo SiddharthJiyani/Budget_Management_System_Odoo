@@ -16,7 +16,7 @@ import BudgetMasterForm from '../components/master/BudgetMasterForm';
 export default function MasterData() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   // Get master type from URL or default to null (shows selector)
   const masterType = searchParams.get('type');
   const view = searchParams.get('view') || 'list'; // 'list' or 'form'
@@ -139,6 +139,7 @@ export default function MasterData() {
               onBack={handleBackToList}
               onHome={handleHome}
               onNew={handleNewRecord}
+              onEdit={handleEditRecord}
             />
           );
         default:

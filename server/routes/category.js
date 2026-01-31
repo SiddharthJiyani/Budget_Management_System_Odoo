@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { auth } = require("../middleware/auth");
+const { auth, isAdmin } = require("../middleware/auth");
 const {
     createCategory,
     getAllCategories,
@@ -10,12 +10,12 @@ const {
     cleanupInvalidCategories,
 } = require("../controllers/Category");
 
-// All routes require authentication
-router.post("/", auth, createCategory);
-router.get("/", auth, getAllCategories);
-router.post("/cleanup", auth, cleanupInvalidCategories); // Clean up invalid categories
-router.get("/:id", auth, getCategoryById);
-router.put("/:id", auth, updateCategory);
-router.delete("/:id", auth, deleteCategory);
+// All routes require authentication and admin role
+router.post("/", auth, isAdmin, createCategory);
+router.get("/", auth, isAdmin, getAllCategories);
+router.post("/cleanup", auth, isAdmin, cleanupInvalidCategories); // Clean up invalid categories
+router.get("/:id", auth, isAdmin, getCategoryById);
+router.put("/:id", auth, isAdmin, updateCategory);
+router.delete("/:id", auth, isAdmin, deleteCategory);
 
 module.exports = router;

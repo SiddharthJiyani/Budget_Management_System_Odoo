@@ -18,11 +18,6 @@ const analyticMasterSchema = new mongoose.Schema({
     endDate: {
         type: Date,
     },
-    // Product category for analytics (Many-to-One)
-    productCategory: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Category",
-    },
     // Type for budget allocation (Income or Expense)
     type: {
         type: String,

@@ -1,15 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { CircleDot } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CircleDot, X } from 'lucide-react';
 import { Button, Card } from '../ui';
 import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import toast from 'react-hot-toast';
 
 export default function BudgetMasterList({ onNew, onEdit, onHome }) {
-  const [activePieChart, setActivePieChart] = useState(null);
+  const [selectedBudgetForPieChart, setSelectedBudgetForPieChart] = useState(null);
   const [activeTab, setActiveTab] = useState('new');
   const [budgets, setBudgets] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const pieChartRef = useRef(null);
 
   // Fetch budgets from database
   useEffect(() => {
@@ -53,26 +52,9 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
 
   const displayedBudgets = budgets;
 
-  // Close pie chart when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (pieChartRef.current && !pieChartRef.current.contains(event.target)) {
-        setActivePieChart(null);
-      }
-    };
-
-    if (activePieChart) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [activePieChart]);
-
   const handlePieClick = (e, budget) => {
     e.stopPropagation();
-    setActivePieChart(activePieChart === budget._id ? null : budget._id);
+    setSelectedBudgetForPieChart(budget);
   };
 
   const getPieChartData = (budget) => {
@@ -203,7 +185,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                           {budget.status?.charAt(0).toUpperCase() + budget.status?.slice(1)}
                         </span>
                       </td>
-                      <td className="p-4 text-center relative">
+                      <td className="p-4 text-center">
                         <button
                           onClick={(e) => handlePieClick(e, budget)}
                           className="inline-flex items-center justify-center p-2 rounded-lg bg-card border border-border transition-all duration-300 hover:shadow-[0_0_12px_rgba(132,204,22,0.3),0_2px_8px_rgba(0,0,0,0.1)] hover:scale-110 hover:-translate-y-0.5"
@@ -211,83 +193,6 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                         >
                           <CircleDot size={18} className="text-primary" />
                         </button>
-
-                        {/* Floating Pie Chart Panel */}
-                        {activePieChart === budget._id && (
-                          <div
-                            ref={pieChartRef}
-                            className="absolute right-0 top-12 z-50 animate-[fadeIn_0.3s_ease-out]"
-                            style={{
-                              animation: 'fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1), scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            }}
-                          >
-                            <Card className="p-6 w-64 neu-card shadow-[0_8px_24px_rgba(0,0,0,0.12)]">
-                              <h3 className="text-sm font-semibold text-foreground mb-4">
-                                Budget Distribution
-                              </h3>
-
-                              {/* Simple Pie Chart Visualization */}
-                              <div className="relative w-32 h-32 mx-auto mb-4">
-                                <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                                  {/* Background circle */}
-                                  <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="40"
-                                    fill="none"
-                                    stroke="hsl(var(--muted))"
-                                    strokeWidth="20"
-                                  />
-                                  {/* Achieved segment */}
-                                  <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="40"
-                                    fill="none"
-                                    stroke="hsl(var(--success))"
-                                    strokeWidth="20"
-                                    strokeDasharray={`${(achievedPercent * 251.2) / 100} 251.2`}
-                                    className="transition-all duration-500"
-                                  />
-                                  {/* Balance segment */}
-                                  <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="40"
-                                    fill="none"
-                                    stroke="hsl(var(--accent))"
-                                    strokeWidth="20"
-                                    strokeDasharray={`${(balancePercent * 251.2) / 100} 251.2`}
-                                    strokeDashoffset={`-${(achievedPercent * 251.2) / 100}`}
-                                    className="transition-all duration-500"
-                                  />
-                                </svg>
-                              </div>
-
-                              {/* Legend */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-success" />
-                                    <span className="text-xs text-muted-foreground">Achieved</span>
-                                  </div>
-                                  <span className="text-xs font-medium text-foreground">
-                                    {getPieChartData(budget).achieved.toLocaleString()}/-
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-accent" />
-                                    <span className="text-xs text-muted-foreground">Balance</span>
-                                  </div>
-                                  <span className="text-xs font-medium text-foreground">
-                                    {getPieChartData(budget).balance.toLocaleString()}/-
-                                  </span>
-                                </div>
-                              </div>
-                            </Card>
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -297,6 +202,104 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
           </table>
         </div>
       </Card>
+
+      {/* Pie Chart Modal */}
+      {selectedBudgetForPieChart && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 mt-16 animate-fadeIn">
+          <Card className="max-w-md w-full p-8 neu-card shadow-[0_8px_24px_rgba(0,0,0,0.12)] animate-scaleIn">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Budget Distribution</h2>
+                <p className="text-sm text-muted-foreground mt-1">{selectedBudgetForPieChart.name}</p>
+              </div>
+              <button
+                onClick={() => setSelectedBudgetForPieChart(null)}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                title="Close"
+              >
+                <X size={20} className="text-muted-foreground hover:text-foreground" />
+              </button>
+            </div>
+
+            {/* Pie Chart Visualization */}
+            <div className="relative w-48 h-48 mx-auto mb-6">
+              <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                {/* Background circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="hsl(var(--muted))"
+                  strokeWidth="20"
+                />
+                {/* Achieved segment */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="hsl(var(--success))"
+                  strokeWidth="20"
+                  strokeDasharray={`${(getPieChartData(selectedBudgetForPieChart).achievedPercent * 251.2) / 100} 251.2`}
+                  className="transition-all duration-500"
+                />
+                {/* Balance segment */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="hsl(var(--accent))"
+                  strokeWidth="20"
+                  strokeDasharray={`${(getPieChartData(selectedBudgetForPieChart).balancePercent * 251.2) / 100} 251.2`}
+                  strokeDashoffset={`-${(getPieChartData(selectedBudgetForPieChart).achievedPercent * 251.2) / 100}`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              {/* Center label */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-foreground">
+                    {getPieChartData(selectedBudgetForPieChart).achievedPercent.toFixed(0)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Achieved</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Legend with detailed amounts */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-success/10 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-success" />
+                  <span className="text-sm font-medium text-foreground">Achieved</span>
+                </div>
+                <span className="text-sm font-bold text-foreground">
+                  {getPieChartData(selectedBudgetForPieChart).achieved.toLocaleString()}/-
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-accent/10 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full bg-accent" />
+                  <span className="text-sm font-medium text-foreground">Balance</span>
+                </div>
+                <span className="text-sm font-bold text-foreground">
+                  {getPieChartData(selectedBudgetForPieChart).balance.toLocaleString()}/-
+                </span>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setSelectedBudgetForPieChart(null)} variant="outline">
+                Close
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

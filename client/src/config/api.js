@@ -90,6 +90,16 @@ export const API_ENDPOINTS = {
         FROM_PO: (poId) => `${API_BASE_URL}/api/vendor-bills/from-po/${poId}`,
     },
 
+    // Sales Order endpoints
+    SALES_ORDERS: {
+        BASE: `${API_BASE_URL}/api/sales-orders`,
+        BY_ID: (id) => `${API_BASE_URL}/api/sales-orders/${id}`,
+        CONFIRM: (id) => `${API_BASE_URL}/api/sales-orders/${id}/confirm`,
+        CANCEL: (id) => `${API_BASE_URL}/api/sales-orders/${id}/cancel`,
+        PDF: (id) => `${API_BASE_URL}/api/sales-orders/${id}/pdf`,
+        SEND: (id) => `${API_BASE_URL}/api/sales-orders/${id}/send`,
+    },
+
     // File upload endpoints
     FILES: {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,

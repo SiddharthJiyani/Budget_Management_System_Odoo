@@ -10,9 +10,10 @@ const forgotPasswordTemplate = require("../mail/templates/forgotPasswordTemplate
 exports.signup = async (req, res) => {
   try {
     // Destructure fields from the request body
-    const { email, password, confirmPassword, accountType, otp } = req.body;
-    // Check if All Details are there or not
-    if (!email || !password || !confirmPassword || !accountType || !otp) {
+    const { name, loginId, email, password, confirmPassword, accountType, otp } = req.body;
+    
+    // Check required fields (OTP is optional)
+    if (!email || !password || !confirmPassword || !accountType) {
       return res.status(403).send({
         success: false,
         message: "All Fields are required",
@@ -23,46 +24,64 @@ exports.signup = async (req, res) => {
     if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
-        message:
-          "Password and Confirm Password do not match. Please try again.",
+        message: "Password and Confirm Password do not match. Please try again.",
       });
     }
 
-    // Check if user already exists
+    // Check if user already exists (by email)
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "User already exists. Please sign in to continue.",
+        message: "Email already exists. Please sign in to continue.",
       });
     }
 
-    const response = await OTP.find({ email }).sort({ createdAt: -1 }).limit(1);
-    console.log(response);
-    if (response.length === 0) {
-      // OTP not found for the email
-      return res.status(400).json({
-        success: false,
-        message: "The OTP is not valid",
-      });
-    } else if (otp !== response[0].otp) {
-      // Invalid OTP
-      return res.status(400).json({
-        success: false,
-        message: "The OTP is not valid",
-      });
+    // Check if loginId already exists (if provided)
+    if (loginId) {
+      const existingLoginId = await User.findOne({ loginId });
+      if (existingLoginId) {
+        return res.status(400).json({
+          success: false,
+          message: "Login ID already exists. Please choose another.",
+        });
+      }
+
+      // Validate loginId length
+      if (loginId.length < 6 || loginId.length > 12) {
+        return res.status(400).json({
+          success: false,
+          message: "Login ID must be 6-12 characters.",
+        });
+      }
+    }
+
+    // Verify OTP if provided
+    if (otp) {
+      const response = await OTP.find({ email }).sort({ createdAt: -1 }).limit(1);
+      if (response.length === 0 || otp !== response[0].otp) {
+        return res.status(400).json({
+          success: false,
+          message: "The OTP is not valid",
+        });
+      }
     }
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // create entry in db
-
+    // Create user entry in db
     const user = await User.create({
+      name: name || "",
+      loginId: loginId || undefined,
       email,
       password: hashedPassword,
       accountType: accountType,
     });
+    
+    // Remove password from response
+    user.password = undefined;
+    
     return res.status(200).json({
       success: true,
       user,
@@ -80,36 +99,37 @@ exports.signup = async (req, res) => {
 // Login function
 exports.login = async (req, res) => {
   try {
-    // Get email and password from request body
+    // Get email/loginId and password from request body
     const { email, password } = req.body;
 
-    // Check if email or password is missing
+    // Check if email/loginId or password is missing
     if (!email || !password) {
-      // Return 400 Bad Request status code with error message
       return res.status(400).json({
         success: false,
         message: `Please Fill up All the Required Fields`,
       });
     }
 
-    // check if user exists in db
-    // Find user with provided email
-    const user = await User.findOne({ email });
+    // Find user by email or loginId
+    const user = await User.findOne({
+      $or: [
+        { email: email },
+        { loginId: email } // Frontend sends loginId via 'email' field
+      ]
+    });
 
-    // If user not found with provided email
+    // If user not found
     if (!user) {
-      // Return 401 Unauthorized status code with error message
       return res.status(401).json({
         success: false,
-        message: `User is not Registered with Us Please SignUp to Continue`,
+        message: `User is not Registered with Us. Please SignUp to Continue`,
       });
     }
 
-    //generate JWT token after matching password and compare password
-
+    // Verify password and generate JWT token
     if (await bcrypt.compare(password, user.password)) {
       const token = jwt.sign(
-        { email: user.email, id: user._id, role: user.role },
+        { email: user.email, id: user._id, role: user.accountType },
         process.env.JWT_SECRET,
         {
           expiresIn: "24h",
@@ -119,11 +139,13 @@ exports.login = async (req, res) => {
       // Save token to user document in database
       user.token = token;
       user.password = undefined;
+      
       // Set cookie for token and return success response
       const options = {
         expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         httpOnly: true,
       };
+      
       res.cookie("token", token, options).status(200).json({
         success: true,
         token,
@@ -138,7 +160,6 @@ exports.login = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    // Return 500 Internal Server Error status code with error message
     return res.status(500).json({
       success: false,
       message: `Login Failure Please Try Again`,

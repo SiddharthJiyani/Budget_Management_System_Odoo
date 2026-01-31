@@ -68,7 +68,7 @@ export default function Login() {
                 required
               />
 
-              <div>
+              <div className="relative">
                 <Input
                   label="Password"
                   type={showPassword ? 'text' : 'password'}

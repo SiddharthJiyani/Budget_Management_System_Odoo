@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        trim: true,
+        default: ""
+    },
     firstName: {
         type: String,
         default: "",
@@ -10,6 +15,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "",
         trim: true
+    },
+    loginId: {
+        type: String,
+        unique: true,
+        sparse: true,
+        trim: true,
+        minlength: 6,
+        maxlength: 12
     },
     email: {
         type: String,
@@ -27,7 +40,7 @@ const userSchema = new mongoose.Schema({
     },
     accountType: {
         type: String,
-        enum: ['user', 'admin'],
+        enum: ['user', 'admin', 'portal'],
         default: 'user',
         required: [true]
     },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, CheckCircle, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../components/ui';
 import { Input } from '../components/ui';
@@ -18,10 +18,20 @@ export default function Signup() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+
+  // Password validation checklist
+  const passwordValidation = {
+    minLength: formData.password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(formData.password),
+    hasLowerCase: /[a-z]/.test(formData.password),
+    hasNumber: /[0-9]/.test(formData.password),
+    hasSpecialChar: /[^a-zA-Z0-9]/.test(formData.password),
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -134,7 +144,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 py-12 animate-fadeIn">
-      <div className="w-full max-w-[720px]">
+      <div className="w-full max-w-2xl">
         <Card className="animate-slideIn">
           <CardHeader className="text-center">
             <CardTitle>Sign Up Page</CardTitle>
@@ -144,7 +154,7 @@ export default function Signup() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Desktop: Two-column grid, Mobile: Single column */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Input
                   label="Name"
                   type="text"
@@ -203,19 +213,61 @@ export default function Signup() {
                   </button>
                 </div>
 
-                <Input
-                  label="Re-Enter Password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                  placeholder="Confirm your password"
-                  icon={Lock}
-                  error={errors.confirmPassword}
-                  disabled={isLoading}
-                  required
-                  wrapperClassName="lg:col-span-2"
-                />
+                <div className="relative">
+                  <Input
+                    label="Re-Enter Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                    placeholder="Confirm your password"
+                    icon={Lock}
+                    error={errors.confirmPassword}
+                    disabled={isLoading}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-[52px] text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
               </div>
+
+              {/* Password Strength Checklist */}
+              {formData.password && (
+                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                  <p className="text-sm font-medium text-foreground mb-3">Password Requirements:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <PasswordRequirement 
+                      met={passwordValidation.minLength} 
+                      text="At least 8 characters" 
+                    />
+                    <PasswordRequirement 
+                      met={passwordValidation.hasUpperCase} 
+                      text="One uppercase letter" 
+                    />
+                    <PasswordRequirement 
+                      met={passwordValidation.hasLowerCase} 
+                      text="One lowercase letter" 
+                    />
+                    <PasswordRequirement 
+                      met={passwordValidation.hasNumber} 
+                      text="One number" 
+                    />
+                    <PasswordRequirement 
+                      met={passwordValidation.hasSpecialChar} 
+                      text="One special character" 
+                    />
+                    <PasswordRequirement 
+                      met={formData.password === formData.confirmPassword && formData.confirmPassword !== ''} 
+                      text="Passwords match" 
+                    />
+                  </div>
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -237,6 +289,22 @@ export default function Signup() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// Password Requirement Component
+function PasswordRequirement({ met, text }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      {met ? (
+        <Check className="text-success flex-shrink-0" size={16} />
+      ) : (
+        <X className="text-muted-foreground flex-shrink-0" size={16} />
+      )}
+      <span className={met ? 'text-success' : 'text-muted-foreground'}>
+        {text}
+      </span>
     </div>
   );
 }

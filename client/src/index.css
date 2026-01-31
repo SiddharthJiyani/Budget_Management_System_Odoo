@@ -11,50 +11,50 @@
 
 @layer base {
   :root {
-    /* Light Theme - Clean Professional ERP */
-    --background: 0 0% 98%;
-    --foreground: 210 12% 16%;
+    /* Light Theme - Soft Teal ERP (Matches Dark Theme) */
+    --background: 180 25% 96%;
+    --foreground: 180 40% 12%;
     
     --card: 0 0% 100%;
-    --card-foreground: 210 12% 16%;
+    --card-foreground: 180 40% 12%;
     
-    /* Primary - Professional Blue */
-    --primary: 210 75% 45%;
+    /* Primary - Rich Green Accent */
+    --primary: 75 65% 45%;
     --primary-foreground: 0 0% 100%;
     
-    /* Secondary - Muted Gray */
-    --secondary: 210 10% 92%;
-    --secondary-foreground: 210 12% 16%;
+    /* Secondary - Soft Teal */
+    --secondary: 180 20% 90%;
+    --secondary-foreground: 180 40% 15%;
     
     /* Muted Elements */
-    --muted: 210 10% 95%;
-    --muted-foreground: 210 8% 45%;
+    --muted: 180 15% 94%;
+    --muted-foreground: 180 15% 40%;
     
-    /* Accent - Subtle Highlight */
-    --accent: 210 15% 90%;
-    --accent-foreground: 210 12% 16%;
+    /* Accent - Teal Highlight */
+    --accent: 180 30% 92%;
+    --accent-foreground: 180 40% 15%;
     
     /* Error States */
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
     
     /* Success States */
-    --success: 142 70% 40%;
+    --success: 75 65% 45%;
     --success-foreground: 0 0% 100%;
     
     /* Form Elements */
-    --border: 210 15% 88%;
-    --input: 210 10% 95%;
-    --ring: 210 75% 45%;
+    --border: 180 20% 85%;
+    --input: 180 15% 95%;
+    --ring: 75 65% 45%;
     
     /* Layout */
     --radius: 0.75rem;
     
-    /* Neumorphism Shadows - Light Mode */
-    --neu-shadow-light: 8px 8px 16px rgba(163, 177, 198, 0.6);
-    --neu-shadow-dark: -8px -8px 16px rgba(255, 255, 255, 0.5);
-    --neu-inset-light: inset 4px 4px 8px rgba(163, 177, 198, 0.4);
-    --neu-inset-dark: inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+    /* Neumorphism Shadows - Light Mode (Teal tinted) */
+    --neu-shadow-light: 8px 8px 16px rgba(155, 185, 180, 0.5);
+    --neu-shadow-dark: -8px -8px 16px rgba(255, 255, 255, 0.6);
+    --neu-inset-light: inset 4px 4px 8px rgba(155, 185, 180, 0.35);
+    --neu-inset-dark: inset -4px -4px 8px rgba(255, 255, 255, 0.6);
   }
 
   .dark {
@@ -107,9 +107,12 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   }
   
-  /* Smooth transitions for theme changes */
+  /* Smooth transitions for theme changes and interactions */
   * {
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -126,12 +129,16 @@
   /* Neumorphic Button */
   .neu-button {
     box-shadow: var(--neu-shadow-light), var(--neu-shadow-dark);
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .neu-button:hover {
+    transform: translateY(-1px);
   }
   
   .neu-button:active {
     box-shadow: var(--neu-inset-light), var(--neu-inset-dark);
-    transform: scale(0.98);
+    transform: scale(0.97) translateY(0);
   }
   
   /* Neumorphic Input */
@@ -152,18 +159,18 @@
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(-15px) scale(0.98);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
   }
   
   @keyframes slideIn {
     from {
       opacity: 0;
-      transform: translateX(-20px);
+      transform: translateX(-25px);
     }
     to {
       opacity: 1;
@@ -172,11 +179,11 @@
   }
   
   .animate-fadeIn {
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
   .animate-slideIn {
-    animation: slideIn 0.3s ease-out;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
   /* Focus visible for accessibility */

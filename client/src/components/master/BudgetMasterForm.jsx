@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Home, ArrowLeft, Eye } from 'lucide-react';
-import { Button, Card, Input } from '../ui';
+import { Eye } from 'lucide-react';
+import { Button, Card } from '../ui';
 import toast from 'react-hot-toast';
 
 const mockBudget = {
@@ -79,45 +79,36 @@ const mockRevisedBudget = {
 };
 
 export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    startDate: '',
-    endDate: '',
-    lines: [],
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [budget, setBudget] = useState(null);
   const [status, setStatus] = useState('draft');
-  const [isRevised, setIsRevised] = useState(false);
-  const [linkedBudgetId, setLinkedBudgetId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (recordId) {
-      const budget = recordId === 2 ? mockRevisedBudget : mockBudget;
-      setFormData({
-        name: budget.name,
-        startDate: budget.startDate,
-        endDate: budget.endDate,
-        lines: budget.lines,
-      });
+      const data = recordId === 2 ? mockRevisedBudget : mockBudget;
+      setBudget(data);
       setStatus('confirmed');
-      setIsRevised(budget.isRevised);
-      setLinkedBudgetId(budget.isRevised ? budget.originalBudgetId : budget.revisedBudgetId);
+    } else {
+      setBudget({
+        name: '',
+        startDate: '',
+        endDate: '',
+        lines: [],
+      });
+      setStatus('draft');
     }
   }, [recordId]);
 
-  const handleChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleNew = () => {
+    onNew();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleConfirm = async () => {
     setIsLoading(true);
-
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setStatus('confirmed');
-      toast.success(`Budget ${recordId ? 'updated' : 'created'} successfully!`);
-      onBack();
+      toast.success('Budget confirmed successfully!');
     } catch (error) {
       toast.error('Something went wrong');
     } finally {
@@ -126,223 +117,261 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew }) {
   };
 
   const handleRevise = () => {
-    toast.success('Creating revised budget...');
-    // UI only - would navigate to new revised budget form
+    toast.info('Creating revised budget...');
   };
 
   const handleArchive = () => {
-    toast.success('Budget archived');
+    toast.info('Budget archived');
     onBack();
   };
 
-  const handleCancel = () => {
-    setStatus('cancelled');
-    toast.success('Budget cancelled');
+  const handleRevisionLinkClick = () => {
+    toast.info(`Navigate to ${budget?.isRevised ? 'Original' : 'Revised'} Budget`);
   };
 
-  const isReadOnly = status === 'confirmed' || status === 'revised';
-  const isDisabled = status === 'archived' || status === 'cancelled';
+  if (!budget) return null;
 
   return (
     <div className="animate-fadeIn">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Budget</h1>
-          <p className="text-muted-foreground">
-            {isRevised ? 'Form View of Revised Budget' : 'Form View of Original Budget'}
-          </p>
-        </div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground mb-1">Budget</h1>
+        <p className="text-sm text-muted-foreground">
+          {budget.isRevised ? 'Form View of Revised Budget' : 'Form View of Original Budget'}
+        </p>
       </div>
 
-      <Card className="overflow-hidden">
-        {/* Action Bar */}
-        <div className="flex items-center gap-3 p-4 border-b border-border bg-muted/30">
-          <Button onClick={onNew} variant="outline" size="sm" disabled={isDisabled}>
-            New
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            variant="primary"
-            size="sm"
-            isLoading={isLoading}
-            disabled={isLoading || isDisabled || isReadOnly}
-          >
-            {isLoading ? 'Saving...' : 'Confirm'}
-          </Button>
-          <Button
-            onClick={handleRevise}
-            variant="outline"
-            size="sm"
-            disabled={status !== 'confirmed' || isDisabled}
-          >
-            Revise
-          </Button>
-          <Button onClick={handleArchive} variant="outline" size="sm" disabled={isDisabled}>
-            Archived
-          </Button>
-          <div className="flex-1" />
+      <Card className="overflow-hidden neu-card">
+        {/* Action Bar & Status Ribbon */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-muted/20">
+          {/* Left: Action Buttons */}
           <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              status === 'draft' 
-                ? 'bg-muted text-muted-foreground'
-                : status === 'confirmed'
-                ? 'bg-success/20 text-success'
-                : status === 'revised'
-                ? 'bg-primary/20 text-primary'
-                : 'bg-destructive/20 text-destructive'
-            }`}>
-              {status === 'draft' ? 'Draft' : status === 'confirmed' ? 'Confirm' : status === 'revised' ? 'Revised' : 'Cancelled'}
+            <Button onClick={handleNew} variant="outline" size="sm">
+              New
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              variant="primary"
+              size="sm"
+              isLoading={isLoading}
+              disabled={isLoading || status === 'confirmed'}
+            >
+              {isLoading ? 'Confirming...' : 'Confirm'}
+            </Button>
+            <Button
+              onClick={handleRevise}
+              variant="outline"
+              size="sm"
+              disabled={status !== 'confirmed'}
+            >
+              Revise
+            </Button>
+            <Button onClick={handleArchive} variant="outline" size="sm">
+              Archived
+            </Button>
+          </div>
+
+          {/* Right: Status Stepper */}
+          <div className="flex items-center gap-1">
+            <span
+              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${
+                status === 'draft'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground/60'
+              }`}
+            >
+              Draft
+            </span>
+            <span className="text-muted-foreground/40">→</span>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
+                status === 'confirmed'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground/60'
+              }`}
+            >
+              Confirm
+            </span>
+            <span className="text-muted-foreground/40">→</span>
+            <span
+              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${
+                status === 'revised'
+                  ? 'text-primary'
+                  : 'text-muted-foreground/60'
+              }`}
+            >
+              Revised
+            </span>
+            <span className="text-muted-foreground/40">→</span>
+            <span
+              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${
+                status === 'cancelled'
+                  ? 'text-destructive'
+                  : 'text-muted-foreground/60'
+              }`}
+            >
+              Cancelled
             </span>
           </div>
-          <Button onClick={onHome} variant="outline" size="sm">
-            <Home size={16} />
-          </Button>
-          <Button onClick={onBack} variant="outline" size="sm">
-            <ArrowLeft size={16} />
-          </Button>
         </div>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-8">
-          <div className="max-w-5xl mx-auto space-y-6">
-            {/* Header Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input
-                label="Budget Name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="Enter budget name"
-                disabled={isReadOnly || isDisabled}
-                required
-              />
-              {linkedBudgetId && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-muted-foreground">
-                    {isRevised ? 'Revision Of' : 'Revised with'}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => toast.info(`Navigate to ${isRevised ? 'Original' : 'Revised'} Budget`)}
-                    className="text-primary hover:underline text-sm"
-                  >
-                    {isRevised ? 'Original Budget' : 'Revised Budget'}
-                    <span className="ml-2 text-xs">(clickable link)</span>
-                  </button>
-                </div>
-              )}
+        {/* Budget Meta Section */}
+        <div className="px-6 py-4 bg-card border-b border-border">
+          <div className="max-w-5xl mx-auto space-y-3">
+            {/* Row 1: Budget Name */}
+            <div className="flex items-baseline gap-3">
+              <label className="text-xs font-medium text-destructive uppercase tracking-wider min-w-[110px]">
+                Budget Name
+              </label>
+              <span className="text-sm font-medium text-foreground">{budget.name || '-'}</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-muted-foreground">
-                  Budget Period
-                </label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    label="Start Date"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => handleChange('startDate', e.target.value)}
-                    disabled={isReadOnly || isDisabled}
-                  />
-                  <span className="text-muted-foreground">To</span>
-                  <Input
-                    label="End Date"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => handleChange('endDate', e.target.value)}
-                    disabled={isReadOnly || isDisabled}
-                  />
-                </div>
+            {/* Row 2: Budget Period */}
+            <div className="flex items-baseline gap-3">
+              <label className="text-xs font-medium text-destructive uppercase tracking-wider min-w-[110px]">
+                Budget Period
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {budget.startDate ? new Date(budget.startDate).toLocaleDateString() : 'Start Date'}
+                </span>
+                <span className="text-sm text-muted-foreground">To</span>
+                <span className="text-sm font-medium text-foreground">
+                  {budget.endDate ? new Date(budget.endDate).toLocaleDateString() : 'End Date'}
+                </span>
               </div>
             </div>
 
-            {/* Budget Lines Table */}
-            <div className="mt-8">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-border bg-muted/20">
-                      <th className="text-left p-3 font-semibold text-primary text-sm">Analytic Name</th>
-                      <th className="text-left p-3 font-semibold text-primary text-sm">Type</th>
-                      <th className="text-right p-3 font-semibold text-primary text-sm">Budgeted Amount</th>
-                      <th className="text-right p-3 font-semibold text-primary text-sm">Achieved Amount</th>
-                      <th className="text-right p-3 font-semibold text-primary text-sm">Achieved %</th>
-                      <th className="text-right p-3 font-semibold text-primary text-sm">Amount to Achieve</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formData.lines.map((line) => (
-                      <tr
-                        key={line.id}
-                        className={`border-b border-border hover:bg-muted/30 transition-colors ${
-                          line.type === 'Income' ? 'bg-success/5' : 'bg-accent/5'
-                        }`}
-                      >
-                        <td className="p-3 text-sm text-foreground">{line.analyticName}</td>
-                        <td className="p-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            line.type === 'Income' 
-                              ? 'bg-success/20 text-success' 
-                              : 'bg-accent/20 text-accent-foreground'
-                          }`}>
-                            {line.type}
-                          </span>
-                        </td>
-                        <td className="p-3 text-sm text-right">
-                          {typeof line.budgetedAmount === 'number' 
-                            ? `${line.budgetedAmount.toLocaleString()}/-` 
-                            : <span className="text-destructive font-medium">{line.budgetedAmount}</span>
-                          }
-                        </td>
-                        <td className="p-3 text-sm text-right">
-                          {status === 'confirmed' ? (
-                            <div className="flex items-center justify-end gap-2">
-                              {typeof line.achievedAmount === 'number' 
-                                ? `${line.achievedAmount.toLocaleString()}/-` 
-                                : <span className="text-destructive font-medium">{line.achievedAmount}</span>
-                              }
-                              <button
-                                type="button"
-                                onClick={() => toast.info('View achievement details')}
-                                className="p-1 rounded hover:bg-muted transition-colors"
-                                title="View"
-                              >
-                                <Eye size={14} className="text-primary" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-sm text-right">
-                          {status === 'confirmed' && line.achievedPercent ? (
-                            <span className="font-medium">
-                              {line.achievedPercent.toFixed(2)} %
-                              {line.achievedPercent < 100 && (
-                                <span className="ml-2 text-xs text-primary">(Budgeted Amount * 100)</span>
-                              )}
+            {/* Row 3: Revision Context (if applicable) */}
+            {recordId && (budget.isRevised || (!budget.isRevised && budget.revisedBudgetId)) && (
+              <div className="flex items-baseline gap-3">
+                <label className="text-xs font-medium text-destructive uppercase tracking-wider min-w-[110px]">
+                  {budget.isRevised ? 'Revision of' : 'Revised with'}
+                </label>
+                <span className="text-sm text-muted-foreground">→</span>
+                <button
+                  onClick={handleRevisionLinkClick}
+                  className="text-sm text-primary hover:underline font-medium"
+                >
+                  {budget.isRevised ? 'Original Budget' : 'Revised Budget'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Budget Lines Table */}
+        <div className="px-6 py-4">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-border bg-muted/10">
+                  <th className="text-left px-4 py-2 font-semibold text-primary text-xs">
+                    Analytic Name
+                  </th>
+                  <th className="text-left px-4 py-2 font-semibold text-primary text-xs">
+                    Type
+                  </th>
+                  <th className="text-right px-4 py-2 font-semibold text-primary text-xs">
+                    Budgeted<br />Amount
+                  </th>
+                  <th className="text-right px-4 py-2 font-semibold text-primary text-xs">
+                    Achieved<br />Amount
+                  </th>
+                  <th className="text-right px-4 py-2 font-semibold text-primary text-xs">
+                    Achieved<br />%
+                  </th>
+                  <th className="text-right px-4 py-2 font-semibold text-primary text-xs">
+                    Amount to<br />Achieve
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {budget.lines.map((line, index) => (
+                  <tr
+                    key={line.id}
+                    className={`border-b border-border/30 transition-colors ${
+                      line.type === 'Income'
+                        ? 'bg-success/[0.05] hover:bg-success/[0.08]'
+                        : 'bg-accent/[0.05] hover:bg-accent/[0.08]'
+                    }`}
+                  >
+                    {/* Analytic Name */}
+                    <td className="px-4 py-2 text-sm text-foreground">
+                      {line.analyticName}
+                    </td>
+
+                    {/* Type */}
+                    <td className="px-4 py-2 text-sm text-foreground">
+                      {line.type}
+                    </td>
+
+                    {/* Budgeted Amount */}
+                    <td className="px-4 py-2 text-sm text-right">
+                      {typeof line.budgetedAmount === 'number' ? (
+                        <span className="font-medium text-foreground">
+                          {line.budgetedAmount.toLocaleString()}/-
+                        </span>
+                      ) : (
+                        <span className="text-destructive font-bold text-xs">
+                          {line.budgetedAmount}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Achieved Amount - Always visible */}
+                    <td className="px-4 py-2 text-sm text-right">
+                      {status === 'confirmed' ? (
+                        <div className="inline-flex items-center gap-2">
+                          {typeof line.achievedAmount === 'number' ? (
+                            <span className="font-medium text-foreground">
+                              {line.achievedAmount.toLocaleString()}/-
                             </span>
                           ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
+                            <span className="text-destructive font-bold text-xs">
+                              {line.achievedAmount}
+                            </span>
                           )}
-                        </td>
-                        <td className="p-3 text-sm text-right">
-                          {status === 'confirmed' && line.amountToAchieve ? (
-                            `${line.amountToAchieve.toLocaleString()}/-`
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                          <button
+                            type="button"
+                            onClick={() => toast.info('View achievement details')}
+                            className="text-xs text-primary hover:underline font-medium"
+                          >
+                            View
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* Achieved % - Always visible */}
+                    <td className="px-4 py-2 text-sm text-right">
+                      {status === 'confirmed' && line.achievedPercent ? (
+                        <span className="font-medium text-foreground">
+                          {line.achievedPercent.toFixed(2)} %
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </td>
+
+                    {/* Amount to Achieve - Always visible */}
+                    <td className="px-4 py-2 text-sm text-right">
+                      {status === 'confirmed' && line.amountToAchieve ? (
+                        <span className="font-medium text-foreground">
+                          {line.amountToAchieve.toLocaleString()}/-
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </form>
+        </div>
       </Card>
     </div>
   );

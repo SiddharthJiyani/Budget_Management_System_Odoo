@@ -24,6 +24,9 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
     loadCategories();
   }, []);
 
+  // Helper to check if a string looks like a MongoDB ObjectId (24 hex chars)
+  const isMongoId = (str) => /^[a-f0-9]{24}$/i.test(str);
+
   const loadCategories = async () => {
     setIsCategoriesLoading(true);
     try {
@@ -33,7 +36,12 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
       const data = await response.json();
 
       if (data.success) {
-        const categories = data.data.map(cat => ({
+        // Filter out categories that have ID-like names (invalid data)
+        const validCategories = data.data.filter(cat => 
+          cat.name && !isMongoId(cat.name)
+        );
+        
+        const categories = validCategories.map(cat => ({
           value: cat._id,
           label: cat.name,
         }));

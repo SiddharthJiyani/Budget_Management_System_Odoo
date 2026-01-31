@@ -263,7 +263,12 @@ export default function ProductMasterList({ onNew, onEdit, onHome }) {
                     <td className="p-4 font-medium text-foreground group-hover:text-primary transition-colors">
                       {product.name}
                     </td>
-                    <td className="p-4 text-muted-foreground">{product.category?.name || '-'}</td>
+                    <td className="p-4 text-muted-foreground">
+                      {/* Show category name if it's a valid name (not an ID) */}
+                      {product.category?.name && !/^[a-f0-9]{24}$/i.test(product.category.name)
+                        ? product.category.name
+                        : '-'}
+                    </td>
                     <td className="p-4 text-muted-foreground">
                       ₹ {product.salesPrice.toFixed(2)}
                     </td>

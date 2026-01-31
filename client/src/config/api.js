@@ -76,6 +76,20 @@ export const API_ENDPOINTS = {
         SEND: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/send`,
     },
 
+    // Vendor Bill endpoints
+    VENDOR_BILLS: {
+        BASE: `${API_BASE_URL}/api/vendor-bills`,
+        BY_ID: (id) => `${API_BASE_URL}/api/vendor-bills/${id}`,
+        CONFIRM: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/confirm`,
+        CANCEL: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/cancel`,
+        AUTO_ASSIGN_ANALYTICS: `${API_BASE_URL}/api/vendor-bills/auto-assign-analytics`,
+        PDF: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/pdf`,
+        SEND: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/send`,
+        CREATE_PAYMENT: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/payment`,
+        VERIFY_PAYMENT: (id) => `${API_BASE_URL}/api/vendor-bills/${id}/verify-payment`,
+        FROM_PO: (poId) => `${API_BASE_URL}/api/vendor-bills/from-po/${poId}`,
+    },
+
     // File upload endpoints
     FILES: {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,

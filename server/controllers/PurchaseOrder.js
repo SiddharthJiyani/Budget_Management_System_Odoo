@@ -601,7 +601,10 @@ exports.generatePurchaseOrderPDF = async (req, res) => {
         }
 
         // Create PDF document
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ 
+            margin: 40,
+            size: 'A4'
+        });
 
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
@@ -610,87 +613,199 @@ exports.generatePurchaseOrderPDF = async (req, res) => {
         // Pipe PDF to response
         doc.pipe(res);
 
-        // Add company header
-        doc.fontSize(20).text('PURCHASE ORDER', { align: 'center' });
-        doc.moveDown();
+        // Helper function to format address
+        const formatAddress = (address) => {
+            if (!address) return 'N/A';
+            if (typeof address === 'string') return address;
+            
+            const parts = [
+                address.street,
+                address.city,
+                address.state,
+                address.country,
+                address.pincode
+            ].filter(part => part && part.trim() !== '');
+            
+            return parts.join(', ');
+        };
 
-        // PO Details
-        doc.fontSize(12);
-        doc.text(`PO Number: ${purchaseOrder.poNumber}`, { continued: false });
-        doc.text(`Date: ${new Date(purchaseOrder.poDate).toLocaleDateString()}`, { continued: false });
-        doc.text(`Status: ${purchaseOrder.status.toUpperCase()}`, { continued: false });
+        // Color theme
+        const primaryColor = '#2563eb';
+        const secondaryColor = '#64748b';
+        const accentColor = '#f8fafc';
+        const textColor = '#1e293b';
+
+        // Header with company name and styling
+        doc.rect(0, 0, doc.page.width, 80).fill(primaryColor);
+        
+        doc.fontSize(24)
+           .fillColor('white')
+           .font('Helvetica-Bold')
+           .text('PURCHASE ORDER', 50, 30, { align: 'center' });
+
+        doc.fontSize(12)
+           .fillColor('white')
+           .font('Helvetica')
+           .text('Budget Management System', 50, 55, { align: 'center' });
+
+        // Reset position and color
+        doc.y = 120;
+        doc.fillColor(textColor);
+
+        // PO Header Section with background
+        doc.rect(40, doc.y - 10, doc.page.width - 80, 60).fill(accentColor).stroke('#e2e8f0');
+        
+        doc.fontSize(16)
+           .font('Helvetica-Bold')
+           .fillColor(primaryColor)
+           .text(`PO #${purchaseOrder.poNumber}`, 60, doc.y + 10);
+        
+        doc.fontSize(11)
+           .font('Helvetica')
+           .fillColor(textColor)
+           .text(`Date: ${new Date(purchaseOrder.poDate).toLocaleDateString()}`, 60, doc.y + 8)
+           .text(`Status: ${purchaseOrder.status.toUpperCase()}`, 60, doc.y + 5);
+        
         if (purchaseOrder.reference) {
-            doc.text(`Reference: ${purchaseOrder.reference}`, { continued: false });
+            doc.text(`Reference: ${purchaseOrder.reference}`, 60, doc.y + 5);
         }
-        doc.moveDown();
 
-        // Vendor Details
-        doc.fontSize(14).text('Vendor Details:', { underline: true });
-        doc.fontSize(11);
-        doc.text(`Name: ${purchaseOrder.vendorId?.name || 'N/A'}`);
-        doc.text(`Email: ${purchaseOrder.vendorId?.email || 'N/A'}`);
-        doc.text(`Phone: ${purchaseOrder.vendorId?.phone || 'N/A'}`);
-        if (purchaseOrder.vendorId?.address) {
-            doc.text(`Address: ${purchaseOrder.vendorId.address}`);
-        }
-        doc.moveDown(2);
+        doc.y += 40;
 
-        // Products Table Header
-        doc.fontSize(14).text('Products:', { underline: true });
-        doc.moveDown(0.5);
+        // Vendor Details Section
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .fillColor(primaryColor)
+           .text('VENDOR DETAILS', 50, doc.y);
+        
+        doc.y += 5;
+        doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
+        doc.y += 15;
 
+        doc.fontSize(11)
+           .font('Helvetica')
+           .fillColor(textColor);
+        
+        const vendorName = purchaseOrder.vendorId?.name || 'N/A';
+        const vendorEmail = purchaseOrder.vendorId?.email || 'N/A';
+        const vendorPhone = purchaseOrder.vendorId?.phone || 'N/A';
+        const vendorAddress = formatAddress(purchaseOrder.vendorId?.address);
+
+        doc.font('Helvetica-Bold').text('Name: ', 60, doc.y, { continued: true })
+           .font('Helvetica').text(vendorName);
+        
+        doc.font('Helvetica-Bold').text('Email: ', 60, doc.y + 5, { continued: true })
+           .font('Helvetica').text(vendorEmail);
+        
+        doc.font('Helvetica-Bold').text('Phone: ', 60, doc.y + 5, { continued: true })
+           .font('Helvetica').text(vendorPhone);
+        
+        doc.font('Helvetica-Bold').text('Address: ', 60, doc.y + 5, { continued: true })
+           .font('Helvetica').text(vendorAddress, { width: 400 });
+
+        doc.y += 40;
+
+        // Products Section
+        doc.fontSize(14)
+           .font('Helvetica-Bold')
+           .fillColor(primaryColor)
+           .text('PRODUCTS', 50, doc.y);
+        
+        doc.y += 5;
+        doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
+        doc.y += 20;
+
+        // Table setup
         const tableTop = doc.y;
-        const itemX = 50;
-        const qtyX = 250;
-        const priceX = 320;
-        const totalX = 400;
+        const itemX = 60;
+        const analyticsX = 200;
+        const qtyX = 320;
+        const priceX = 380;
+        const totalX = 450;
 
-        // Table header
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Product', itemX, tableTop);
-        doc.text('Qty', qtyX, tableTop);
-        doc.text('Unit Price', priceX, tableTop);
-        doc.text('Total', totalX, tableTop);
+        // Table header background
+        doc.rect(50, tableTop - 5, doc.page.width - 100, 25).fill('#f1f5f9').stroke('#e2e8f0');
 
-        // Draw line
-        doc.moveTo(itemX, tableTop + 15).lineTo(500, tableTop + 15).stroke();
+        // Table header text
+        doc.fontSize(10)
+           .font('Helvetica-Bold')
+           .fillColor(textColor);
+        
+        doc.text('PRODUCT', itemX, tableTop + 5);
+        doc.text('ANALYTICS', analyticsX, tableTop + 5);
+        doc.text('QTY', qtyX, tableTop + 5);
+        doc.text('UNIT PRICE', priceX, tableTop + 5);
+        doc.text('TOTAL', totalX, tableTop + 5);
 
         // Table rows
         doc.font('Helvetica');
-        let yPosition = tableTop + 25;
+        let yPosition = tableTop + 30;
 
         purchaseOrder.lines.forEach((line, index) => {
-            const productName = line.productName || line.productId?.name || 'N/A';
-            doc.text(productName, itemX, yPosition, { width: 180 });
+            // Alternate row background
+            if (index % 2 === 0) {
+                doc.rect(50, yPosition - 5, doc.page.width - 100, 25).fill('#fefefe').stroke();
+            }
+
+            const productName = line.productName || 'N/A';
+            const analyticsName = line.budgetAnalyticId?.name || 'N/A';
+            
+            doc.fillColor(textColor);
+            doc.text(productName, itemX, yPosition, { width: 130 });
+            doc.text(analyticsName, analyticsX, yPosition, { width: 110 });
             doc.text(line.quantity.toString(), qtyX, yPosition);
-            doc.text(`${line.unitPrice.toFixed(2)}`, priceX, yPosition);
-            doc.text(`${line.lineTotal.toFixed(2)}`, totalX, yPosition);
+            doc.text(`₹${line.unitPrice.toFixed(2)}`, priceX, yPosition);
+            doc.text(`₹${line.lineTotal.toFixed(2)}`, totalX, yPosition);
+            
+            // Warning for budget exceeded
+            if (line.exceedsBudget) {
+                doc.fontSize(8)
+                   .fillColor('#dc2626')
+                   .text('⚠ Exceeds Budget', itemX, yPosition + 12);
+                doc.fontSize(10).fillColor(textColor);
+            }
+            
             yPosition += 30;
         });
 
-        // Draw line before total
-        doc.moveTo(itemX, yPosition).lineTo(500, yPosition).stroke();
-        yPosition += 15;
+        // Total section
+        yPosition += 10;
+        doc.rect(50, yPosition - 5, doc.page.width - 100, 30).fill(primaryColor);
+        
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .fillColor('white')
+           .text('GRAND TOTAL:', priceX - 60, yPosition + 8);
+        
+        doc.fontSize(14)
+           .text(`₹${purchaseOrder.grandTotal.toFixed(2)}`, totalX, yPosition + 6);
 
-        // Grand Total
-        doc.fontSize(12).font('Helvetica-Bold');
-        doc.text('Grand Total:', priceX - 50, yPosition);
-        doc.text(`${purchaseOrder.grandTotal.toFixed(2)}`, totalX, yPosition);
-
-        // Notes
-        if (purchaseOrder.notes) {
-            doc.moveDown(2);
-            doc.fontSize(10).font('Helvetica');
-            doc.text(`Notes: ${purchaseOrder.notes}`);
+        // Notes section
+        if (purchaseOrder.notes && purchaseOrder.notes.trim() !== '') {
+            doc.y = yPosition + 50;
+            doc.fontSize(12)
+               .font('Helvetica-Bold')
+               .fillColor(primaryColor)
+               .text('NOTES', 50, doc.y);
+            
+            doc.y += 5;
+            doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
+            doc.y += 15;
+            
+            doc.fontSize(10)
+               .font('Helvetica')
+               .fillColor(textColor)
+               .text(purchaseOrder.notes, 60, doc.y, { width: 480 });
         }
 
         // Footer
-        doc.fontSize(8).text(
-            `Generated on ${new Date().toLocaleString()}`,
-            50,
-            doc.page.height - 50,
-            { align: 'center' }
-        );
+        const footerY = doc.page.height - 60;
+        doc.rect(0, footerY - 10, doc.page.width, 70).fill('#f8fafc');
+        
+        doc.fontSize(8)
+           .fillColor(secondaryColor)
+           .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY, { align: 'center' })
+           .text('This is a computer-generated document.', 50, footerY + 15, { align: 'center' });
 
         // Finalize PDF
         doc.end();

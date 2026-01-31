@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, Plus, X, AlertTriangle, Send, Download, Ban } from 'lucide-react';
+import { ArrowLeft, Home, Plus, X, AlertTriangle, Send, Download, Ban, FileText } from 'lucide-react';
 import { Button, Card, Input, Select } from '../components/ui';
 import toast from 'react-hot-toast';
 import { API_ENDPOINTS, getAuthHeaders } from '../config/api';
@@ -22,6 +22,9 @@ export default function PurchaseOrderForm() {
   const [products, setProducts] = useState([]);
   const [status, setStatus] = useState('draft');
   const [showProductModal, setShowProductModal] = useState(false);
+  const [isCreatingBill, setIsCreatingBill] = useState(false);
+  const [hasVendorBill, setHasVendorBill] = useState(false);
+  const [existingVendorBillId, setExistingVendorBillId] = useState(null);
   const [productForm, setProductForm] = useState({
     productName: '',
     quantity: 1,
@@ -83,6 +86,9 @@ export default function PurchaseOrderForm() {
         });
         setProducts(po.lines || []);
         setStatus(po.status || 'draft');
+        
+        // Check if a vendor bill already exists for this PO
+        await checkVendorBillExists();
       } else {
         toast.error(data.message || 'Failed to load purchase order');
       }
@@ -90,6 +96,76 @@ export default function PurchaseOrderForm() {
       toast.error('Failed to load purchase order');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkVendorBillExists = async () => {
+    if (!id) return;
+    
+    try {
+      // Search for vendor bills and filter by purchase order ID on the client side
+      const response = await fetch(API_ENDPOINTS.VENDOR_BILLS.BASE, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.vendorBills) {
+        // Check if any vendor bill has this purchase order ID
+        const existingBill = data.data.vendorBills.find(bill => 
+          bill.purchaseOrderId && bill.purchaseOrderId._id === id
+        );
+        if (existingBill) {
+          setHasVendorBill(true);
+          setExistingVendorBillId(existingBill._id);
+        } else {
+          setHasVendorBill(false);
+          setExistingVendorBillId(null);
+        }
+      } else {
+        setHasVendorBill(false);
+        setExistingVendorBillId(null);
+      }
+    } catch (error) {
+      console.error('Error checking vendor bill:', error);
+      setHasVendorBill(false);
+    }
+  };
+
+  const handleCreateBill = async () => {
+    // If bill already exists, navigate to it
+    if (hasVendorBill && existingVendorBillId) {
+      navigate(`/vendor-bills/${existingVendorBillId}`);
+      return;
+    }
+
+    if (!id || status !== 'confirmed') {
+      toast.error('Purchase Order must be confirmed to create a vendor bill');
+      return;
+    }
+
+    setIsCreatingBill(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.VENDOR_BILLS.FROM_PO(id), {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Vendor Bill created successfully!');
+        setHasVendorBill(true); // Update state to reflect bill creation
+        setExistingVendorBillId(data.data._id);
+        // Navigate to the created vendor bill
+        navigate(`/vendor-bills/${data.data._id}`);
+      } else {
+        toast.error(data.message || 'Failed to create vendor bill');
+      }
+    } catch (error) {
+      console.error('Error creating vendor bill:', error);
+      toast.error('Failed to create vendor bill');
+    } finally {
+      setIsCreatingBill(false);
     }
   };
 
@@ -366,6 +442,17 @@ export default function PurchaseOrderForm() {
               disabled={isLoading || status !== 'draft'}
             >
               Confirm
+            </Button>
+            <Button
+              onClick={handleCreateBill}
+              variant={hasVendorBill ? "outline" : "primary"}
+              size="sm"
+              isLoading={isCreatingBill}
+              disabled={isCreatingBill || (status !== 'confirmed' && !hasVendorBill) || !id}
+              className={hasVendorBill ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" : ""}
+            >
+              <FileText size={16} className="mr-1" />
+              {hasVendorBill ? 'View Bill' : 'Create Bill'}
             </Button>
             <Button
               onClick={handlePrintPDF}

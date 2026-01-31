@@ -15,7 +15,7 @@ const menuData = {
   ],
   Purchase: [
     { label: 'Purchase Order', path: '/purchase/orders' },
-    { label: 'Purchase Bill', path: '/purchase/bill' },
+    { label: 'Vendor Bills', path: '/vendor-bills' },
     { label: 'Payment', path: '/purchase/payment' },
   ],
   Sale: [

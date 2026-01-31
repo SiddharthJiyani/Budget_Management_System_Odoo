@@ -16,7 +16,7 @@ export const API_ENDPOINTS = {
         ME: `${API_BASE_URL}/api/auth/me`,
         GOOGLE: `${API_BASE_URL}/api/auth/google`,
     },
-    
+
     // Master Data endpoints
     CONTACTS: {
         BASE: `${API_BASE_URL}/api/contacts`,
@@ -25,24 +25,24 @@ export const API_ENDPOINTS = {
         UNARCHIVE: (id) => `${API_BASE_URL}/api/contacts/${id}/unarchive`,
         PERMANENT_DELETE: (id) => `${API_BASE_URL}/api/contacts/${id}/permanent`,
     },
-    
+
     PRODUCTS: {
         BASE: `${API_BASE_URL}/api/products`,
         BY_ID: (id) => `${API_BASE_URL}/api/products/${id}`,
         UNARCHIVE: (id) => `${API_BASE_URL}/api/products/${id}/unarchive`,
         PERMANENT_DELETE: (id) => `${API_BASE_URL}/api/products/${id}/permanent`,
     },
-    
+
     CATEGORIES: {
         BASE: `${API_BASE_URL}/api/categories`,
         BY_ID: (id) => `${API_BASE_URL}/api/categories/${id}`,
     },
-    
+
     PARTNER_TAGS: {
         BASE: `${API_BASE_URL}/api/partner-tags`,
         BY_ID: (id) => `${API_BASE_URL}/api/partner-tags/${id}`,
     },
-    
+
     ANALYTICS: {
         BASE: `${API_BASE_URL}/api/analytics`,
         BY_ID: (id) => `${API_BASE_URL}/api/analytics/${id}`,
@@ -50,7 +50,7 @@ export const API_ENDPOINTS = {
         UNARCHIVE: (id) => `${API_BASE_URL}/api/analytics/${id}/unarchive`,
         PERMANENT_DELETE: (id) => `${API_BASE_URL}/api/analytics/${id}/permanent`,
     },
-    
+
     BUDGETS: {
         BASE: `${API_BASE_URL}/api/budgets`,
         BY_ID: (id) => `${API_BASE_URL}/api/budgets/${id}`,
@@ -58,7 +58,7 @@ export const API_ENDPOINTS = {
         REVISE: (id) => `${API_BASE_URL}/api/budgets/${id}/revise`,
         ANALYTIC_DETAILS: (budgetId, analyticId) => `${API_BASE_URL}/api/budgets/${budgetId}/analytic/${analyticId}/details`,
     },
-    
+
     // File upload endpoints
     FILES: {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,
@@ -67,11 +67,14 @@ export const API_ENDPOINTS = {
         GET_ALL: `${API_BASE_URL}/api/files`,
         GET_USER_FILES: `${API_BASE_URL}/api/files/user`,
     },
-    
+
     // Payment endpoints
     PAYMENT: {
         CREATE_ORDER: `${API_BASE_URL}/api/payment/create-order`,
-        VERIFY: `${API_BASE_URL}/api/payment/verify`,
+        VERIFY: `${API_BASE_URL}/api/payment/verify-payment`,
+        KEY: `${API_BASE_URL}/api/payment/key`,
+        GET_PAYMENT: (paymentId) => `${API_BASE_URL}/api/payment/${paymentId}`,
+        REFUND: `${API_BASE_URL}/api/payment/refund`,
     },
 };
 

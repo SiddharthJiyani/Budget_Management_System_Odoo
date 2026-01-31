@@ -14,6 +14,13 @@ import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import CreateUser from './pages/CreateUser'
 import MasterData from './pages/MasterData'
+import PurchaseOrder from './pages/PurchaseOrder'
+import PurchaseBill from './pages/PurchaseBill'
+import PurchasePayment from './pages/PurchasePayment'
+import SaleOrder from './pages/SaleOrder'
+import SaleInvoice from './pages/SaleInvoice'
+import SaleReceipt from './pages/SaleReceipt'
+import CustomerInvoicePortal from './pages/CustomerInvoicePortal'
 
 function App() {
   return (
@@ -32,6 +39,16 @@ function App() {
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
+            {/* Purchase Flow */}
+            <Route path="/purchase/order" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
+            <Route path="/purchase/bill" element={<ProtectedRoute><PurchaseBill /></ProtectedRoute>} />
+            <Route path="/purchase/payment" element={<ProtectedRoute><PurchasePayment /></ProtectedRoute>} />
+            {/* Sale Flow */}
+            <Route path="/sale/order" element={<ProtectedRoute><SaleOrder /></ProtectedRoute>} />
+            <Route path="/sale/invoice" element={<ProtectedRoute><SaleInvoice /></ProtectedRoute>} />
+            <Route path="/sale/receipt" element={<ProtectedRoute><SaleReceipt /></ProtectedRoute>} />
+            {/* Customer Portal */}
+            <Route path="/portal/invoices" element={<CustomerInvoicePortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
@@ -41,3 +58,4 @@ function App() {
 }
 
 export default App
+

@@ -11,6 +11,7 @@ export default function VendorBillList() {
   const [activeTab, setActiveTab] = useState('all');
   const [vendorBills, setVendorBills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(null);
 
   const tabs = [
     { key: 'all', label: 'All', count: vendorBills.length },
@@ -20,7 +21,7 @@ export default function VendorBillList() {
   ];
 
   const paymentStatusColors = {
-    not_paid: 'text-red-600 bg-red-50 border-red-200',
+    not_paid: 'text-blue-600 bg-blue-50 border-blue-200',
     partial: 'text-orange-600 bg-orange-50 border-orange-200',
     paid: 'text-green-600 bg-green-50 border-green-200',
   };
@@ -54,6 +55,38 @@ export default function VendorBillList() {
     }
   };
 
+  const handleDownloadPDF = async (billId) => {
+    setDownloadingPdf(billId);
+    try {
+      const response = await fetch(API_ENDPOINTS.VENDOR_BILLS.PDF(billId), {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `vendor-bill-${billId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('PDF download error:', error);
+      toast.error('Failed to download PDF');
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
+
   const handleAction = async (action, billId) => {
     setIsLoading(true);
     try {
@@ -75,7 +108,7 @@ export default function VendorBillList() {
           successMessage = 'Vendor bill sent successfully';
           break;
         case 'print':
-          window.open(API_ENDPOINTS.VENDOR_BILLS.PDF(billId), '_blank');
+          await handleDownloadPDF(billId);
           return;
         case 'pay':
           navigate(`/vendor-bills/${billId}/payment`);
@@ -233,7 +266,7 @@ export default function VendorBillList() {
                                 ? 'text-blue-600 bg-blue-50 border-blue-200'
                                 : bill.status === 'confirmed'
                                 ? 'text-green-600 bg-green-50 border-green-200'
-                                : 'text-red-600 bg-red-50 border-red-200'
+                                : 'text-blue-600 bg-blue-50 border-blue-200'
                             }`}
                           >
                             {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
@@ -255,8 +288,9 @@ export default function VendorBillList() {
                               variant="ghost"
                               size="sm"
                               className="h-10 w-10 p-0"
+                              disabled={downloadingPdf === bill._id}
                             >
-                              <Download size={18} />
+                              <Download size={18} className={downloadingPdf === bill._id ? "animate-spin" : ""} />
                             </Button>
                             
                             {bill.status === 'confirmed' && bill.dueAmount > 0 && (
@@ -296,7 +330,7 @@ export default function VendorBillList() {
                                 onClick={() => handleAction('cancel', bill._id)}
                                 variant="ghost"
                                 size="sm"
-                                className="h-10 w-10 p-0 text-red-600 hover:text-red-700"
+                                className="h-10 w-10 p-0 text-blue-600 hover:text-blue-700"
                               >
                                 <Ban size={18} />
                               </Button>

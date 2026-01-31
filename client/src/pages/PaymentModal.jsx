@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CreditCard, Banknote, Smartphone, ArrowLeft, Check } from 'lucide-react';
+import { CreditCard, Banknote, Smartphone, ArrowLeft, Check, Send, Download, Ban } from 'lucide-react';
 import { Button, Card, Input } from '../components/ui';
 import { API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import toast from 'react-hot-toast';
@@ -9,18 +9,28 @@ import Header from '../components/Header';
 export default function PaymentModal() {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const [vendorBill, setVendorBill] = useState(null);
   const [paymentData, setPaymentData] = useState({
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0],
-    paymentMethod: 'razorpay',
+    paymentMethod: 'cash',
     reference: '',
     notes: '',
   });
+  const [paymentStatus, setPaymentStatus] = useState('draft');
+  const [paymentNumber, setPaymentNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showRazorpay, setShowRazorpay] = useState(false);
+
+  // Generate payment number on-the-fly
+  const generatePaymentNumber = () => {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `PAY/${month}/${year.toString().slice(2)}/${random}`;
+  };
 
   const paymentMethods = [
     {
@@ -61,9 +71,11 @@ export default function PaymentModal() {
       if (data.success) {
         const bill = data.data;  // API returns data directly, not data.data.vendorBill
         setVendorBill(bill);
+        setPaymentNumber(generatePaymentNumber());
         setPaymentData(prev => ({
           ...prev,
           amount: (bill && bill.dueAmount) ? bill.dueAmount : 0,
+          reference: bill.billNumber ? `Payment against ${bill.billNumber}` : '',
         }));
       } else {
         toast.error(data.message || 'Failed to fetch vendor bill');
@@ -112,7 +124,7 @@ export default function PaymentModal() {
   const verifyRazorpayPayment = async (razorpayPaymentId, razorpayOrderId, razorpaySignature) => {
     try {
       console.log('Verifying payment with:', { razorpayPaymentId, razorpayOrderId, razorpaySignature, amount: paymentData.amount });
-      
+
       const response = await fetch(API_ENDPOINTS.VENDOR_BILLS.VERIFY_PAYMENT(id), {
         method: 'POST',
         headers: {
@@ -148,7 +160,7 @@ export default function PaymentModal() {
     setIsProcessing(true);
     try {
       const payment = await createRazorpayOrder();
-      
+
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: payment.amount || payment.amount * 100,
@@ -219,7 +231,7 @@ export default function PaymentModal() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (paymentData.amount <= 0) {
       toast.error('Payment amount must be greater than 0');
       return;
@@ -272,20 +284,94 @@ export default function PaymentModal() {
       <div className="header-spacer" />
       <div className="min-h-screen bg-background p-8 animate-fadeIn">
         <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              onClick={() => navigate(`/vendor-bills/${id}`)}
-              variant="ghost"
-              size="sm"
-            >
-              <ArrowLeft size={16} className="mr-1" />
-              Back
-            </Button>
+          {/* Header with Payment Number and Actions */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={() => navigate(`/vendor-bills/${id}`)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <ArrowLeft size={16} className="mr-1" />
+                  Back
+                </Button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">New</span>
+                    <span className="text-lg font-bold text-foreground">{paymentNumber}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
+                  Home
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate(`/vendor-bills/${id}`)}>
+                  Back
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    setPaymentStatus('confirmed');
+                    handleSubmit(new Event('submit'));
+                  }}
+                  variant="primary"
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={isProcessing}
+                >
+                  <Check size={16} className="mr-1" />
+                  Confirm
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Download size={16} className="mr-1" />
+                  Print
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Send size={16} className="mr-1" />
+                  Send
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                  <Ban size={16} className="mr-1" />
+                  Cancel
+                </Button>
+              </div>
+
+              {/* Status Stepper */}
+              <div className="flex items-center gap-2 text-xs">
+                <div className={`px-3 py-1 rounded-full ${paymentStatus === 'draft'
+                    ? 'bg-blue-100 text-blue-700 font-semibold'
+                    : 'bg-gray-100 text-gray-400'
+                  }`}>
+                  Draft
+                </div>
+                <span className="text-gray-400">→</span>
+                <div className={`px-3 py-1 rounded-full ${paymentStatus === 'confirmed'
+                    ? 'bg-green-100 text-green-700 font-semibold'
+                    : 'bg-gray-100 text-gray-400'
+                  }`}>
+                  Confirm
+                </div>
+                <span className="text-gray-400">→</span>
+                <div className={`px-3 py-1 rounded-full ${paymentStatus === 'cancelled'
+                    ? 'bg-red-100 text-red-700 font-semibold'
+                    : 'bg-gray-100 text-gray-400'
+                  }`}>
+                  Cancelled
+                </div>
+              </div>
+            </div>
+
             <div>
-              <h1 className="text-3xl font-bold text-foreground mb-1">Payment</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-1">Bill Payment</h1>
               <p className="text-sm text-muted-foreground">
-                Process payment for Bill {vendorBill?.billNumber || 'N/A'}
+                Record Outgoing Payment for Bill {vendorBill?.billNumber || 'N/A'}
               </p>
             </div>
           </div>
@@ -306,7 +392,7 @@ export default function PaymentModal() {
                 </p>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-border">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Paid Amount</p>
@@ -322,13 +408,12 @@ export default function PaymentModal() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Payment Status</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                  vendorBill?.paymentStatus === 'paid'
-                    ? 'text-green-600 bg-green-50 border-green-200'
-                    : vendorBill?.paymentStatus === 'partial'
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${vendorBill?.paymentStatus === 'paid'
+                  ? 'text-green-600 bg-green-50 border-green-200'
+                  : vendorBill?.paymentStatus === 'partial'
                     ? 'text-orange-600 bg-orange-50 border-orange-200'
                     : 'text-red-600 bg-red-50 border-red-200'
-                }`}>
+                  }`}>
                   {vendorBill?.paymentStatus?.replace('_', ' ').toUpperCase() || 'N/A'}
                 </span>
               </div>
@@ -366,11 +451,10 @@ export default function PaymentModal() {
                   {paymentMethods.map((method) => (
                     <div
                       key={method.id}
-                      className={`relative rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentData.paymentMethod === method.id
-                          ? `${method.color} border-current`
-                          : 'border-border bg-background hover:border-primary/30'
-                      }`}
+                      className={`relative rounded-lg border-2 cursor-pointer transition-all ${paymentData.paymentMethod === method.id
+                        ? `${method.color} border-current`
+                        : 'border-border bg-background hover:border-primary/30'
+                        }`}
                       onClick={() => handleInputChange('paymentMethod', method.id)}
                     >
                       <div className="p-4">
@@ -444,11 +528,11 @@ export default function PaymentModal() {
                   variant="primary"
                 >
                   <CreditCard size={16} className="mr-1" />
-                  {isProcessing 
-                    ? 'Processing...' 
-                    : paymentData.paymentMethod === 'razorpay' 
-                    ? 'Pay Now' 
-                    : 'Record Payment'
+                  {isProcessing
+                    ? 'Processing...'
+                    : paymentData.paymentMethod === 'razorpay'
+                      ? 'Pay Now'
+                      : 'Record Payment'
                   }
                 </Button>
               </div>

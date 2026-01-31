@@ -48,7 +48,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-[480px]">
+      <div className="w-full max-w-lg">
         <Card className="animate-slideIn">
           <CardHeader className="text-center">
             <CardTitle>Login Page</CardTitle>

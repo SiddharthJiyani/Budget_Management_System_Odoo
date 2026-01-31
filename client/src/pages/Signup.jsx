@@ -10,7 +10,8 @@ const API_URL = 'http://localhost:4000/api/auth';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     loginId: '',
     email: '',
     password: '',
@@ -22,6 +23,8 @@ export default function Signup() {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [checkingLoginId, setCheckingLoginId] = useState(false);
+  const [loginIdStatus, setLoginIdStatus] = useState(null); // 'available', 'taken', or null
   const navigate = useNavigate();
 
   // Password validation checklist
@@ -36,8 +39,12 @@ export default function Signup() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First Name is required';
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last Name is required';
     }
 
     if (!formData.loginId) {
@@ -74,6 +81,40 @@ export default function Signup() {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+
+    // Check loginId uniqueness when it changes
+    if (field === 'loginId') {
+      setLoginIdStatus(null);
+      if (value.length >= 6 && value.length <= 12) {
+        checkLoginIdAvailability(value);
+      }
+    }
+  };
+
+  // Check loginId availability with debouncing
+  const checkLoginIdAvailability = async (loginId) => {
+    setCheckingLoginId(true);
+
+    try {
+      const response = await fetch(`${API_URL}/check-loginid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLoginIdStatus(data.available ? 'available' : 'taken');
+        if (!data.available) {
+          setErrors(prev => ({ ...prev, loginId: 'Login ID already taken' }));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking loginId:', error);
+    } finally {
+      setCheckingLoginId(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -91,7 +132,8 @@ export default function Signup() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
@@ -144,7 +186,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 py-12 animate-fadeIn">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-lg">
         <Card className="animate-slideIn">
           <CardHeader className="text-center">
             <CardTitle>Sign Up Page</CardTitle>
@@ -154,30 +196,55 @@ export default function Signup() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Desktop: Two-column grid, Mobile: Single column */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="">
                 <Input
-                  label="Name"
+                  label="First Name"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Enter your full name"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  placeholder="Enter your first name"
                   icon={User}
-                  error={errors.name}
+                  error={errors.firstName}
                   disabled={isLoading}
                   required
                 />
 
                 <Input
-                  label="Login ID"
+                  label="Last Name"
                   type="text"
-                  value={formData.loginId}
-                  onChange={(e) => handleChange('loginId', e.target.value)}
-                  placeholder="6-12 characters"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                  placeholder="Enter your last name"
                   icon={User}
-                  error={errors.loginId}
+                  error={errors.lastName}
                   disabled={isLoading}
                   required
                 />
+
+                <div className="relative">
+                  <Input
+                    label="Login ID"
+                    type="text"
+                    value={formData.loginId}
+                    onChange={(e) => handleChange('loginId', e.target.value)}
+                    placeholder="6-12 characters"
+                    icon={User}
+                    error={errors.loginId}
+                    disabled={isLoading}
+                    required
+                  />
+                  {formData.loginId.length >= 6 && (
+                    <div className="absolute right-3 top-[43px] flex items-center gap-2">
+                      {checkingLoginId ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                      ) : loginIdStatus === 'available' ? (
+                        <Check className="text-success" size={20} />
+                      ) : loginIdStatus === 'taken' ? (
+                        <X className="text-destructive" size={20} />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
 
                 <Input
                   label="Email ID"
@@ -206,7 +273,7 @@ export default function Signup() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-[52px] text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-[43px] text-muted-foreground hover:text-foreground transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -228,7 +295,7 @@ export default function Signup() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-[52px] text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-[43px] text-muted-foreground hover:text-foreground transition-colors"
                     tabIndex={-1}
                   >
                     {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -241,29 +308,29 @@ export default function Signup() {
                 <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
                   <p className="text-sm font-medium text-foreground mb-3">Password Requirements:</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <PasswordRequirement 
-                      met={passwordValidation.minLength} 
-                      text="At least 8 characters" 
+                    <PasswordRequirement
+                      met={passwordValidation.minLength}
+                      text="At least 8 characters"
                     />
-                    <PasswordRequirement 
-                      met={passwordValidation.hasUpperCase} 
-                      text="One uppercase letter" 
+                    <PasswordRequirement
+                      met={passwordValidation.hasUpperCase}
+                      text="One uppercase letter"
                     />
-                    <PasswordRequirement 
-                      met={passwordValidation.hasLowerCase} 
-                      text="One lowercase letter" 
+                    <PasswordRequirement
+                      met={passwordValidation.hasLowerCase}
+                      text="One lowercase letter"
                     />
-                    <PasswordRequirement 
-                      met={passwordValidation.hasNumber} 
-                      text="One number" 
+                    <PasswordRequirement
+                      met={passwordValidation.hasNumber}
+                      text="One number"
                     />
-                    <PasswordRequirement 
-                      met={passwordValidation.hasSpecialChar} 
-                      text="One special character" 
+                    <PasswordRequirement
+                      met={passwordValidation.hasSpecialChar}
+                      text="One special character"
                     />
-                    <PasswordRequirement 
-                      met={formData.password === formData.confirmPassword && formData.confirmPassword !== ''} 
-                      text="Passwords match" 
+                    <PasswordRequirement
+                      met={formData.password === formData.confirmPassword && formData.confirmPassword !== ''}
+                      text="Passwords match"
                     />
                   </div>
                 </div>

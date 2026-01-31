@@ -11,7 +11,8 @@ const API_URL = 'http://localhost:4000/api/auth';
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     loginId: '',
     email: '',
     role: '',
@@ -32,8 +33,12 @@ export default function CreateUser() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First Name is required';
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last Name is required';
     }
 
     if (!formData.loginId) {
@@ -91,7 +96,8 @@ export default function CreateUser() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           email: formData.email,
           loginId: formData.loginId,
           password: formData.password,
@@ -106,7 +112,8 @@ export default function CreateUser() {
         toast.success(`${formData.role === 'admin' ? 'Admin' : 'Portal'} user created successfully! 🎉`);
         // Reset form
         setFormData({
-          name: '',
+          firstName: '',
+          lastName: '',
           loginId: '',
           email: '',
           role: '',
@@ -153,13 +160,25 @@ export default function CreateUser() {
               {/* Desktop: Two-column grid, Mobile: Single column */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <Input
-                  label="Name"
+                  label="First Name"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => handleChange('name', e.target.value)}
-                  placeholder="Enter full name"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange('firstName', e.target.value)}
+                  placeholder="Enter first name"
                   icon={User}
-                  error={errors.name}
+                  error={errors.firstName}
+                  disabled={isLoading}
+                  required
+                />
+
+                <Input
+                  label="Last Name"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange('lastName', e.target.value)}
+                  placeholder="Enter last name"
+                  icon={User}
+                  error={errors.lastName}
                   disabled={isLoading}
                   required
                 />

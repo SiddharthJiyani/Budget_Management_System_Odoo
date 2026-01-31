@@ -1,6 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { signup, login, sendotp, forgotPassword } = require("../controllers/Auth");
+const { signup, login, sendotp, forgotPassword, checkLoginId } = require("../controllers/Auth");
 const passport = require("../config/passport");
 const router = express.Router();
 
@@ -8,6 +8,7 @@ router.post("/signup", signup);
 router.post("/login", login);
 router.post("/sendotp", sendotp);
 router.post("/forgotpassword", forgotPassword);
+router.post("/check-loginid", checkLoginId);
 
 // Check if Google OAuth is configured
 const isGoogleConfigured = () => {

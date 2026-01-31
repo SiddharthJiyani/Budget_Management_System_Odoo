@@ -6,11 +6,57 @@ const otpGenerator = require("otp-generator");
 const mailSender = require("../utils/mailSender");
 const forgotPasswordTemplate = require("../mail/templates/forgotPasswordTemplate");
 
+// Check loginId availability
+exports.checkLoginId = async (req, res) => {
+  try {
+    const { loginId } = req.body;
+    
+    if (!loginId) {
+      return res.status(400).json({
+        success: false,
+        message: "Login ID is required",
+      });
+    }
+
+    // Validate loginId length
+    if (loginId.length < 6 || loginId.length > 12) {
+      return res.status(400).json({
+        success: false,
+        available: false,
+        message: "Login ID must be 6-12 characters",
+      });
+    }
+
+    // Check if loginId exists
+    const existingLoginId = await User.findOne({ loginId });
+    
+    if (existingLoginId) {
+      return res.status(200).json({
+        success: true,
+        available: false,
+        message: "Login ID already taken",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      available: true,
+      message: "Login ID is available",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error checking Login ID availability",
+    });
+  }
+};
+
 // Signup function
 exports.signup = async (req, res) => {
   try {
     // Destructure fields from the request body
-    const { name, loginId, email, password, confirmPassword, accountType, otp } = req.body;
+    const { firstName, lastName, loginId, email, password, confirmPassword, accountType, otp } = req.body;
     
     // Check required fields (OTP is optional)
     if (!email || !password || !confirmPassword || !accountType) {
@@ -72,7 +118,9 @@ exports.signup = async (req, res) => {
 
     // Create user entry in db
     const user = await User.create({
-      name: name || "",
+      firstName: firstName || "",
+      lastName: lastName || "",
+      name: `${firstName || ""} ${lastName || ""}`.trim(), // Combined full name
       loginId: loginId || undefined,
       email,
       password: hashedPassword,

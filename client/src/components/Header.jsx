@@ -13,7 +13,7 @@ const menuData = {
     { label: 'Budget', path: '/master-data?type=budget' },
   ],
   Purchase: [
-    { label: 'Purchase Order', path: '/purchase/order' },
+    { label: 'Purchase Order', path: '/purchase/orders' },
     { label: 'Purchase Bill', path: '/purchase/bill' },
     { label: 'Payment', path: '/purchase/payment' },
   ],

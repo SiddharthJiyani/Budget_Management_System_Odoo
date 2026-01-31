@@ -5,7 +5,10 @@ const purchaseOrderLineSchema = new mongoose.Schema({
     productId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Product",
-        required: [true, "Product is required"],
+    },
+    productName: {
+        type: String,
+        trim: true,
     },
     budgetAnalyticId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +27,10 @@ const purchaseOrderLineSchema = new mongoose.Schema({
     lineTotal: {
         type: Number,
         default: 0,
+    },
+    exceedsBudget: {
+        type: Boolean,
+        default: false,
     },
 }, { _id: true });
 
@@ -63,6 +70,21 @@ const purchaseOrderSchema = new mongoose.Schema({
         index: true,
     },
     lines: [purchaseOrderLineSchema],
+    grandTotal: {
+        type: Number,
+        default: 0,
+    },
+    sentToVendor: {
+        type: Boolean,
+        default: false,
+    },
+    sentDate: {
+        type: Date,
+    },
+    notes: {
+        type: String,
+        trim: true,
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -70,35 +92,35 @@ const purchaseOrderSchema = new mongoose.Schema({
     },
 }, {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
 });
 
 // Static method to get next PO number
 purchaseOrderSchema.statics.getNextPoNumber = async function () {
-    const lastPO = await this.findOne({}, { poNumber: 1 })
+    const year = new Date().getFullYear();
+    const lastPO = await this.findOne({ poNumber: { $regex: `^PO-${year}-` } }, { poNumber: 1 })
         .sort({ poNumber: -1 })
         .lean();
 
     if (!lastPO) {
-        return "PO00001";
+        return `PO-${year}-0001`;
     }
 
-    // Extract number from PO00001 format
-    const lastNumber = parseInt(lastPO.poNumber.replace("PO", ""), 10);
+    // Extract number from PO-2026-0001 format
+    const parts = lastPO.poNumber.split('-');
+    const lastNumber = parseInt(parts[2], 10);
     const nextNumber = lastNumber + 1;
-    return `PO${String(nextNumber).padStart(5, "0")}`;
+    return `PO-${year}-${String(nextNumber).padStart(4, "0")}`;
 };
 
-// Method to calculate line totals
-purchaseOrderSchema.methods.calculateLineTotals = function () {
+// Method to calculate line totals and grand total
+purchaseOrderSchema.methods.calculateTotals = function () {
     this.lines.forEach(line => {
         line.lineTotal = line.quantity * line.unitPrice;
     });
+    this.grandTotal = this.lines.reduce((sum, line) => sum + (line.lineTotal || 0), 0);
 };
-
-// Virtual for grand total
-purchaseOrderSchema.virtual('grandTotal').get(function () {
-    return this.lines.reduce((sum, line) => sum + (line.lineTotal || 0), 0);
-});
 
 // Indexes for better query performance
 purchaseOrderSchema.index({ poNumber: 1, status: 1 });

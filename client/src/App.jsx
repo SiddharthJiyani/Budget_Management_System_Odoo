@@ -14,7 +14,8 @@ import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import CreateUser from './pages/CreateUser'
 import MasterData from './pages/MasterData'
-import PurchaseOrder from './pages/PurchaseOrder'
+import PurchaseOrderList from './pages/PurchaseOrderList'
+import PurchaseOrderForm from './pages/PurchaseOrderForm'
 import PurchaseBill from './pages/PurchaseBill'
 import PurchasePayment from './pages/PurchasePayment'
 import SaleOrder from './pages/SaleOrder'
@@ -40,7 +41,9 @@ function App() {
             <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
             {/* Purchase Flow */}
-            <Route path="/purchase/order" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
+            <Route path="/purchase/orders" element={<ProtectedRoute><PurchaseOrderList /></ProtectedRoute>} />
+            <Route path="/purchase/orders/new" element={<ProtectedRoute><PurchaseOrderForm /></ProtectedRoute>} />
+            <Route path="/purchase/orders/:id" element={<ProtectedRoute><PurchaseOrderForm /></ProtectedRoute>} />
             <Route path="/purchase/bill" element={<ProtectedRoute><PurchaseBill /></ProtectedRoute>} />
             <Route path="/purchase/payment" element={<ProtectedRoute><PurchasePayment /></ProtectedRoute>} />
             {/* Sale Flow */}

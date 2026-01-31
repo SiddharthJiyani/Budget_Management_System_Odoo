@@ -59,6 +59,23 @@ export const API_ENDPOINTS = {
         ANALYTIC_DETAILS: (budgetId, analyticId) => `${API_BASE_URL}/api/budgets/${budgetId}/analytic/${analyticId}/details`,
     },
 
+    // Vendor endpoints
+    VENDORS: {
+        BASE: `${API_BASE_URL}/api/vendors`,
+        BY_ID: (id) => `${API_BASE_URL}/api/vendors/${id}`,
+    },
+
+    // Purchase Order endpoints
+    PURCHASE_ORDERS: {
+        BASE: `${API_BASE_URL}/api/purchase-orders`,
+        BY_ID: (id) => `${API_BASE_URL}/api/purchase-orders/${id}`,
+        CONFIRM: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/confirm`,
+        CANCEL: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/cancel`,
+        AUTO_ASSIGN_ANALYTICS: `${API_BASE_URL}/api/purchase-orders/auto-assign-analytics`,
+        PDF: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/pdf`,
+        SEND: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/send`,
+    },
+
     // File upload endpoints
     FILES: {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,

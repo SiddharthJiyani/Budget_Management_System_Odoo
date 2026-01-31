@@ -205,7 +205,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
 
       {/* Pie Chart Modal */}
       {selectedBudgetForPieChart && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 mt-16 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 mt- animate-fadeIn">
           <Card className="max-w-md w-full p-8 neu-card shadow-[0_8px_24px_rgba(0,0,0,0.12)] animate-scaleIn">
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-6">

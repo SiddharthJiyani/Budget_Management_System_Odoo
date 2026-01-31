@@ -1,40 +1,57 @@
 import { useState, useRef, useEffect } from 'react';
 import { CircleDot } from 'lucide-react';
 import { Button, Card } from '../ui';
-
-// Mock data with pie chart values
-const mockBudgets = [
-  {
-    id: 1,
-    name: 'January 2026',
-    startDate: '2026-01-01',
-    endDate: '2026-01-31',
-    status: 'Confirmed',
-    achieved: 37950,
-    balance: 642050,
-    archived: false,
-  },
-  {
-    id: 2,
-    name: 'January 2026 (Rev 15 01 2026)',
-    startDate: '2026-01-01',
-    endDate: '2026-01-31',
-    status: 'Confirmed',
-    isRevised: true,
-    achieved: 37950,
-    balance: 642050,
-    archived: false,
-  },
-];
+import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
+import toast from 'react-hot-toast';
 
 export default function BudgetMasterList({ onNew, onEdit, onHome }) {
   const [activePieChart, setActivePieChart] = useState(null);
   const [activeTab, setActiveTab] = useState('new');
+  const [budgets, setBudgets] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const pieChartRef = useRef(null);
 
-  const displayedBudgets = mockBudgets.filter((budget) =>
-    activeTab === 'new' ? !budget.archived : budget.archived
-  );
+  // Fetch budgets from database
+  useEffect(() => {
+    fetchBudgets();
+  }, [activeTab]);
+
+  const fetchBudgets = async () => {
+    setIsLoading(true);
+    try {
+      // For "new" tab, fetch all non-archived budgets (draft, confirmed, revised)
+      // For "archived" tab, fetch only archived budgets
+      const statusParam = activeTab === 'new' ? 'all' : 'archived';
+      const url = statusParam === 'all'
+        ? `${API_ENDPOINTS.BUDGETS.BASE}?status=all`
+        : `${API_ENDPOINTS.BUDGETS.BASE}?status=${statusParam}`;
+
+      const response = await fetch(url, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        let filteredBudgets = data.data.budgets || [];
+        // Filter out archived budgets when showing "new" tab
+        if (activeTab === 'new') {
+          filteredBudgets = filteredBudgets.filter(b => b.status !== 'archived');
+        }
+        setBudgets(filteredBudgets);
+      } else {
+        toast.error(data.message || 'Failed to load budgets');
+        setBudgets([]);
+      }
+    } catch (error) {
+      console.error('Fetch budgets error:', error);
+      toast.error('Failed to load budgets');
+      setBudgets([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const displayedBudgets = budgets;
 
   // Close pie chart when clicking outside
   useEffect(() => {
@@ -55,14 +72,25 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
 
   const handlePieClick = (e, budget) => {
     e.stopPropagation();
-    setActivePieChart(activePieChart === budget.id ? null : budget.id);
+    setActivePieChart(activePieChart === budget._id ? null : budget._id);
   };
 
   const getPieChartData = (budget) => {
-    const total = budget.achieved + budget.balance;
-    const achievedPercent = (budget.achieved / total) * 100;
-    const balancePercent = (budget.balance / total) * 100;
-    return { achievedPercent, balancePercent };
+    // Calculate totals from budget lines
+    const totalBudgeted = budget.lines?.reduce((sum, line) => sum + (line.budgetedAmount || 0), 0) || 0;
+    const totalAchieved = budget.lines?.reduce((sum, line) => sum + (line.achievedAmount || 0), 0) || 0;
+    const balance = totalBudgeted - totalAchieved;
+
+    const total = totalBudgeted;
+    const achievedPercent = total > 0 ? (totalAchieved / total) * 100 : 0;
+    const balancePercent = total > 0 ? (balance / total) * 100 : 0;
+
+    return {
+      achievedPercent,
+      balancePercent,
+      achieved: totalAchieved,
+      balance: balance
+    };
   };
 
   return (
@@ -81,21 +109,19 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
         <div className="flex border-b border-border bg-muted/30">
           <button
             onClick={() => setActiveTab('new')}
-            className={`px-6 py-3 font-semibold transition-all ${
-              activeTab === 'new'
-                ? 'bg-card text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
+            className={`px-6 py-3 font-semibold transition-all ${activeTab === 'new'
+              ? 'bg-card text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
           >
             New
           </button>
           <button
             onClick={() => setActiveTab('archived')}
-            className={`px-6 py-3 font-semibold transition-all ${
-              activeTab === 'archived'
-                ? 'bg-card text-primary border-b-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
+            className={`px-6 py-3 font-semibold transition-all ${activeTab === 'archived'
+              ? 'bg-card text-primary border-b-2 border-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
           >
             Archived
           </button>
@@ -120,7 +146,13 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
               </tr>
             </thead>
             <tbody>
-              {displayedBudgets.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="5" className="text-center p-12 text-muted-foreground">
+                    Loading budgets...
+                  </td>
+                </tr>
+              ) : displayedBudgets.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center p-12 text-muted-foreground">
                     No budgets found. Click "New" to create one.
@@ -131,7 +163,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                   const { achievedPercent, balancePercent } = getPieChartData(budget);
                   return (
                     <tr
-                      key={budget.id}
+                      key={budget._id}
                       className="border-b border-border group transition-all duration-300 hover:shadow-[inset_0_2px_8px_rgba(0,0,0,0.06)] hover:bg-muted/30"
                       style={{
                         cursor: 'pointer',
@@ -139,7 +171,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                     >
                       <td
                         className="p-4 font-medium text-foreground group-hover:text-primary transition-colors duration-200"
-                        onClick={() => onEdit(budget.id)}
+                        onClick={() => onEdit(budget._id)}
                       >
                         {budget.name}
                         {budget.isRevised && (
@@ -148,28 +180,27 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                       </td>
                       <td
                         className="p-4 text-muted-foreground text-sm"
-                        onClick={() => onEdit(budget.id)}
+                        onClick={() => onEdit(budget._id)}
                       >
                         {new Date(budget.startDate).toLocaleDateString()}
                       </td>
                       <td
                         className="p-4 text-muted-foreground text-sm"
-                        onClick={() => onEdit(budget.id)}
+                        onClick={() => onEdit(budget._id)}
                       >
                         {new Date(budget.endDate).toLocaleDateString()}
                       </td>
                       <td
                         className="p-4"
-                        onClick={() => onEdit(budget.id)}
+                        onClick={() => onEdit(budget._id)}
                       >
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
-                            budget.status === 'Confirmed'
-                              ? 'bg-success/20 text-success'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${budget.status?.toLowerCase() === 'confirmed'
+                            ? 'bg-success/20 text-success'
+                            : 'bg-muted text-muted-foreground'
+                            }`}
                         >
-                          {budget.status}
+                          {budget.status?.charAt(0).toUpperCase() + budget.status?.slice(1)}
                         </span>
                       </td>
                       <td className="p-4 text-center relative">
@@ -182,7 +213,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                         </button>
 
                         {/* Floating Pie Chart Panel */}
-                        {activePieChart === budget.id && (
+                        {activePieChart === budget._id && (
                           <div
                             ref={pieChartRef}
                             className="absolute right-0 top-12 z-50 animate-[fadeIn_0.3s_ease-out]"
@@ -194,7 +225,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                               <h3 className="text-sm font-semibold text-foreground mb-4">
                                 Budget Distribution
                               </h3>
-                              
+
                               {/* Simple Pie Chart Visualization */}
                               <div className="relative w-32 h-32 mx-auto mb-4">
                                 <svg viewBox="0 0 100 100" className="transform -rotate-90">
@@ -241,7 +272,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                                     <span className="text-xs text-muted-foreground">Achieved</span>
                                   </div>
                                   <span className="text-xs font-medium text-foreground">
-                                    {budget.achieved.toLocaleString()}/-
+                                    {getPieChartData(budget).achieved.toLocaleString()}/-
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -250,7 +281,7 @@ export default function BudgetMasterList({ onNew, onEdit, onHome }) {
                                     <span className="text-xs text-muted-foreground">Balance</span>
                                   </div>
                                   <span className="text-xs font-medium text-foreground">
-                                    {budget.balance.toLocaleString()}/-
+                                    {getPieChartData(budget).balance.toLocaleString()}/-
                                   </span>
                                 </div>
                               </div>

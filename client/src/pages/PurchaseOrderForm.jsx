@@ -42,14 +42,14 @@ export default function PurchaseOrderForm() {
 
   const fetchVendors = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.VENDORS.BASE, {
+      const response = await fetch(API_ENDPOINTS.CONTACTS.BASE, {
         headers: getAuthHeaders(),
       });
       
       const data = await response.json();
 
-      if (data.success && data.data && data.data.vendors) {
-        setVendors(data.data.vendors);
+      if (data.success && data.data && data.data.contacts) {
+        setVendors(data.data.contacts);
       } else {
         toast.error(data.message || 'Failed to load vendors');
         setVendors([]);

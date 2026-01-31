@@ -133,6 +133,10 @@ exports.createVendorBill = async (req, res) => {
             createdBy: req.user.id,
         });
 
+        // Ensure totals are calculated correctly
+        vendorBill.calculateTotals();
+        await vendorBill.save();
+
         // Populate the response
         await vendorBill.populate([
             { path: 'vendorId', select: 'name email phone address' },
@@ -339,6 +343,8 @@ exports.updateVendorBill = async (req, res) => {
         if (dueDate) vendorBill.dueDate = dueDate;
         if (notes !== undefined) vendorBill.notes = notes;
 
+        // Ensure totals are calculated correctly
+        vendorBill.calculateTotals();
         await vendorBill.save();
 
         // Populate the response
@@ -737,9 +743,9 @@ exports.generateVendorBillPDF = async (req, res) => {
         };
 
         // Color theme
-        const primaryColor = '#dc2626';
+        const primaryColor = '#3b82f6';
         const secondaryColor = '#64748b';
-        const accentColor = '#fef2f2';
+        const accentColor = '#eff6ff';
         const textColor = '#1e293b';
 
         // Header with company name and styling
@@ -869,7 +875,7 @@ exports.generateVendorBillPDF = async (req, res) => {
             // Warning for budget exceeded
             if (line.exceedsBudget) {
                 doc.fontSize(8)
-                   .fillColor('#dc2626')
+                   .fillColor('#3b82f6')
                    .text('⚠ Exceeds Budget', itemX, yPosition + 12);
                 doc.fontSize(10).fillColor(textColor);
             }
@@ -962,9 +968,9 @@ exports.sendVendorBillToVendor = async (req, res) => {
         const emailSubject = `Vendor Bill: ${vendorBill.billNumber}`;
         const emailBody = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #dc2626;">Vendor Bill</h2>
+                <h2 style="color: #3b82f6;">Vendor Bill</h2>
                 
-                <div style="background-color: #fef2f2; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #dc2626;">
+                <div style="background-color: #eff6ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #3b82f6;">
                     <p><strong>Bill Number:</strong> ${vendorBill.billNumber}</p>
                     <p><strong>Bill Date:</strong> ${new Date(vendorBill.billDate).toLocaleDateString()}</p>
                     <p><strong>Due Date:</strong> ${new Date(vendorBill.dueDate).toLocaleDateString()}</p>
@@ -973,13 +979,13 @@ exports.sendVendorBillToVendor = async (req, res) => {
                     ${vendorBill.reference ? `<p><strong>Reference:</strong> ${vendorBill.reference}</p>` : ''}
                 </div>
 
-                <h3 style="color: #dc2626;">Vendor Details</h3>
+                <h3 style="color: #3b82f6;">Vendor Details</h3>
                 <p><strong>Name:</strong> ${vendorBill.vendorId.name}</p>
 
-                <h3 style="color: #dc2626;">Products</h3>
+                <h3 style="color: #3b82f6;">Products</h3>
                 <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                     <thead>
-                        <tr style="background-color: #dc2626; color: white;">
+                        <tr style="background-color: #3b82f6; color: white;">
                             <th style="padding: 10px; text-align: left;">Product</th>
                             <th style="padding: 10px; text-align: center;">Quantity</th>
                             <th style="padding: 10px; text-align: right;">Unit Price</th>
@@ -998,7 +1004,7 @@ exports.sendVendorBillToVendor = async (req, res) => {
                     </tbody>
                 </table>
 
-                <div style="background-color: #dc2626; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <div style="background-color: #3b82f6; color: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <table style="width: 100%; color: white;">
                         <tr><td><strong>Grand Total:</strong></td><td style="text-align: right;"><strong>₹${vendorBill.grandTotal.toFixed(2)}</strong></td></tr>
                         <tr><td>Paid Amount:</td><td style="text-align: right;">₹${vendorBill.paidAmount.toFixed(2)}</td></tr>
@@ -1106,6 +1112,10 @@ exports.createFromPurchaseOrder = async (req, res) => {
             notes: purchaseOrder.notes,
             createdBy: req.user.id,
         });
+
+        // Ensure totals are calculated correctly
+        vendorBill.calculateTotals();
+        await vendorBill.save();
 
         // Populate the response
         await vendorBill.populate([

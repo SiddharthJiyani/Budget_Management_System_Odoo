@@ -1,24 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Home, ArrowLeft } from 'lucide-react';
+import { Home, ArrowLeft, Plus } from 'lucide-react';
 import { Button, Card, Input, Select } from '../ui';
 import toast from 'react-hot-toast';
+import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 
-// Mock data
-const mockProduct = {
-  id: 1,
-  name: 'Office Chair',
-  category: 'furniture',
-  salesPrice: 5500.0,
-  purchasePrice: 4200.0,
-  archived: false,
-};
-
-const categoryOptions = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'stationery', label: 'Stationery' },
-  { value: 'software', label: 'Software' },
-];
+// Removed mock data - using real API
 
 export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
   const [formData, setFormData] = useState({
@@ -27,18 +13,106 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
     salesPrice: '',
     purchasePrice: '',
   });
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    setIsCategoriesLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.CATEGORIES.BASE, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const categories = data.data.map(cat => ({
+          value: cat._id,
+          label: cat.name,
+        }));
+        setCategoryOptions(categories);
+        
+        if (categories.length === 0) {
+          toast('No categories found. Create one to get started!', { icon: 'ℹ️' });
+        }
+      } else {
+        toast.error(data.message || 'Failed to load categories');
+      }
+    } catch (error) {
+      console.error('Load categories error:', error);
+      toast.error('Failed to load categories');
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Please enter a category name');
+      return;
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.CATEGORIES.BASE, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name: newCategoryName.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Category created successfully!');
+        setNewCategoryName('');
+        setShowCreateCategory(false);
+        await loadCategories();
+        // Auto-select the newly created category
+        setFormData(prev => ({ ...prev, category: data.data._id }));
+      } else {
+        toast.error(data.message || 'Failed to create category');
+      }
+    } catch (error) {
+      console.error('Create category error:', error);
+      toast.error('Failed to create category');
+    }
+  };
 
   useEffect(() => {
     if (recordId) {
-      setFormData({
-        name: mockProduct.name,
-        category: mockProduct.category,
-        salesPrice: mockProduct.salesPrice.toFixed(2),
-        purchasePrice: mockProduct.purchasePrice.toFixed(2),
-      });
+      loadProduct();
     }
   }, [recordId]);
+
+  const loadProduct = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.PRODUCTS.BY_ID(recordId), {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const product = data.data;
+        setFormData({
+          name: product.name,
+          category: product.category?._id || '',
+          salesPrice: product.salesPrice.toFixed(2),
+          purchasePrice: product.purchasePrice.toFixed(2),
+        });
+      } else {
+        toast.error(data.message || 'Failed to load product');
+      }
+    } catch (error) {
+      console.error('Load product error:', error);
+      toast.error('Failed to load product');
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -49,19 +123,62 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Product ${recordId ? 'updated' : 'created'} successfully!`);
-      onBack();
+      const productData = {
+        name: formData.name,
+        category: formData.category,
+        salesPrice: parseFloat(formData.salesPrice),
+        purchasePrice: parseFloat(formData.purchasePrice),
+      };
+
+      const url = recordId
+        ? API_ENDPOINTS.PRODUCTS.BY_ID(recordId)
+        : API_ENDPOINTS.PRODUCTS.BASE;
+
+      const method = recordId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(productData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`Product ${recordId ? 'updated' : 'created'} successfully!`);
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to save product');
+      }
     } catch (error) {
+      console.error('Save product error:', error);
       toast.error('Something went wrong');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleArchive = () => {
-    toast.success('Product archived');
-    onBack();
+  const handleArchive = async () => {
+    if (!recordId) return;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.PRODUCTS.BY_ID(recordId), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Product archived');
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to archive product');
+      }
+    } catch (error) {
+      console.error('Archive product error:', error);
+      toast.error('Failed to archive product');
+    }
   };
 
   return (
@@ -121,14 +238,61 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
             />
 
             <div className="grid grid-cols-2 gap-5">
-              <Select
-                label="Category"
-                value={formData.category}
-                onChange={(e) => handleChange('category', e.target.value)}
-                options={categoryOptions}
-                placeholder="Selection"
-                required
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-muted-foreground">
+                    Category <span className="text-destructive ml-1">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCategory(!showCreateCategory)}
+                    className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                  >
+                    <Plus size={14} />
+                    Create New
+                  </button>
+                </div>
+                
+                {showCreateCategory ? (
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="Enter category name"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      variant="primary"
+                      size="sm"
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateCategory(false);
+                        setNewCategoryName('');
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.category}
+                    onChange={(e) => handleChange('category', e.target.value)}
+                    options={categoryOptions}
+                    placeholder={isCategoriesLoading ? "Loading categories..." : categoryOptions.length === 0 ? "No categories - Create one!" : "Selection"}
+                    required
+                    disabled={isCategoriesLoading}
+                  />
+                )}
+              </div>
               <Input
                 label="Sales Price"
                 type="number"

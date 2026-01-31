@@ -2,24 +2,9 @@ import { useState, useEffect } from 'react';
 import { Home, ArrowLeft } from 'lucide-react';
 import { Button, Card, Input, Select } from '../ui';
 import toast from 'react-hot-toast';
+import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 
-const mockAnalytical = {
-  id: 1,
-  name: 'Deepawali',
-  description: 'Festival season analytics for decoration and lighting products',
-  startDate: '2026-10-20',
-  endDate: '2026-11-05',
-  productCategory: 'decoration',
-  status: 'Confirmed',
-  archived: false,
-};
-
-const categoryOptions = [
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'decoration', label: 'Decoration' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'stationery', label: 'Stationery' },
-];
+// Removed mock data - using real API
 
 export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }) {
   const [formData, setFormData] = useState({
@@ -29,20 +14,63 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
     endDate: '',
     productCategory: '',
   });
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.CATEGORIES.BASE, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setCategoryOptions(data.data.map(cat => ({
+          value: cat._id,
+          label: cat.name,
+        })));
+      }
+    } catch (error) {
+      console.error('Load categories error:', error);
+    }
+  };
+
   useEffect(() => {
     if (recordId) {
-      setFormData({
-        name: mockAnalytical.name,
-        description: mockAnalytical.description,
-        startDate: mockAnalytical.startDate,
-        endDate: mockAnalytical.endDate,
-        productCategory: mockAnalytical.productCategory,
-      });
+      loadAnalytic();
     }
   }, [recordId]);
+
+  const loadAnalytic = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.ANALYTICS.BY_ID(recordId), {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const analytic = data.data;
+        setFormData({
+          name: analytic.name,
+          description: analytic.description || '',
+          startDate: analytic.startDate ? analytic.startDate.split('T')[0] : '',
+          endDate: analytic.endDate ? analytic.endDate.split('T')[0] : '',
+          productCategory: analytic.productCategory?._id || '',
+        });
+      } else {
+        toast.error(data.message || 'Failed to load analytic');
+      }
+    } catch (error) {
+      console.error('Load analytic error:', error);
+      toast.error('Failed to load analytic');
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -82,19 +110,63 @@ export default function AnalyticalMasterForm({ recordId, onBack, onHome, onNew }
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Analytic ${recordId ? 'updated' : 'created'} successfully!`);
-      onBack();
+      const analyticData = {
+        name: formData.name,
+        description: formData.description,
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null,
+        productCategory: formData.productCategory || null,
+      };
+
+      const url = recordId
+        ? API_ENDPOINTS.ANALYTICS.BY_ID(recordId)
+        : API_ENDPOINTS.ANALYTICS.BASE;
+
+      const method = recordId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(analyticData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`Analytic ${recordId ? 'updated' : 'created'} successfully!`);
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to save analytic');
+      }
     } catch (error) {
+      console.error('Save analytic error:', error);
       toast.error('Something went wrong');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleArchive = () => {
-    toast.success('Analytic archived');
-    onBack();
+  const handleArchive = async () => {
+    if (!recordId) return;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.ANALYTICS.BY_ID(recordId), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Analytic archived');
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to archive analytic');
+      }
+    } catch (error) {
+      console.error('Archive analytic error:', error);
+      toast.error('Failed to archive analytic');
+    }
   };
 
   return (

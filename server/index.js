@@ -39,10 +39,22 @@ cloudinaryConnect();
 const userRoutes = require("./routes/user");
 const fileUploadRoutes = require("./routes/fileUpload");
 const paymentRoutes = require("./routes/payment");
+// Master Data routes
+const contactRoutes = require("./routes/contact");
+const productRoutes = require("./routes/product");
+const categoryRoutes = require("./routes/category");
+const partnerTagRoutes = require("./routes/partnerTag");
+const analyticMasterRoutes = require("./routes/analyticMaster");
 
 app.use("/api/auth", userRoutes);
 app.use("/api/files", fileUploadRoutes);
 app.use("/api/payment", paymentRoutes);
+// Mount Master Data routes
+app.use("/api/contacts", contactRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/partner-tags", partnerTagRoutes);
+app.use("/api/analytics", analyticMasterRoutes);
 
 
 // Start the server

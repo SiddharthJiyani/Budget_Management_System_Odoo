@@ -2,24 +2,10 @@ import { useState, useEffect } from 'react';
 import { Home, ArrowLeft, Upload } from 'lucide-react';
 import { Button, Card, Input } from '../ui';
 import toast from 'react-hot-toast';
+import { API_ENDPOINTS, getAuthHeaders, getFileUploadHeaders } from '../../config/api';
 
-// Mock data - replace with actual API calls
-const mockContact = {
-  id: 1,
-  name: 'Azure Interior',
-  email: 'azure.Interior24@example.com',
-  phone: '8080808080',
-  address: {
-    street: '123 Main St',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    country: 'India',
-    pincode: '400001',
-  },
-  tags: ['B2B', 'MSME', 'Retailer', 'Local'],
-  image: null,
-  archived: false,
-};
+
+// Removed mock data - using real API calls
 
 export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
   const [formData, setFormData] = useState({
@@ -39,35 +25,77 @@ export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
   // Load data if editing existing record
   useEffect(() => {
     if (recordId) {
-      // Simulate API call
-      setFormData({
-        name: mockContact.name,
-        email: mockContact.email,
-        phone: mockContact.phone,
-        street: mockContact.address.street,
-        city: mockContact.address.city,
-        state: mockContact.address.state,
-        country: mockContact.address.country,
-        pincode: mockContact.address.pincode,
-        tags: mockContact.tags.join(', '),
-        image: mockContact.image,
-      });
+      loadContact();
     }
   }, [recordId]);
+
+  const loadContact = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.CONTACTS.BY_ID(recordId), {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const contact = data.data;
+        setFormData({
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone || '',
+          street: contact.address?.street || '',
+          city: contact.address?.city || '',
+          state: contact.address?.state || '',
+          country: contact.address?.country || '',
+          pincode: contact.address?.pincode || '',
+          tags: contact.partnerTags?.map(tag => tag.displayName).join(', ') || '',
+          image: contact.image?.url || null,
+        });
+      } else {
+        toast.error(data.message || 'Failed to load contact');
+      }
+    } catch (error) {
+      console.error('Load contact error:', error);
+      toast.error('Failed to load contact');
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // In production, upload to server and get URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      if (!recordId) {
+        toast.error('Please save the contact first before uploading an image');
+        return;
+      }
+
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+
+      try {
+        setIsLoading(true);
+        const response = await fetch(API_ENDPOINTS.CONTACTS.UPLOAD_IMAGE(recordId), {
+          method: 'POST',
+          headers: getFileUploadHeaders(),
+          body: formDataUpload,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setFormData((prev) => ({ ...prev, image: data.data.url }));
+          toast.success('Image uploaded successfully!');
+        } else {
+          toast.error(data.message || 'Failed to upload image');
+        }
+      } catch (error) {
+        console.error('Image upload error:', error);
+        toast.error('Failed to upload image');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -76,20 +104,74 @@ export default function ContactMasterForm({ recordId, onBack, onHome, onNew }) {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
-      onBack();
+      const tagsArray = formData.tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
+      const contactData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: {
+          street: formData.street,
+          city: formData.city,
+          state: formData.state,
+          country: formData.country,
+          pincode: formData.pincode,
+        },
+        partnerTags: tagsArray,
+      };
+
+      const url = recordId
+        ? API_ENDPOINTS.CONTACTS.BY_ID(recordId)
+        : API_ENDPOINTS.CONTACTS.BASE;
+
+      const method = recordId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(contactData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(`Contact ${recordId ? 'updated' : 'created'} successfully!`);
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to save contact');
+      }
     } catch (error) {
+      console.error('Save contact error:', error);
       toast.error('Something went wrong');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleArchive = () => {
-    toast.success('Contact archived');
-    onBack();
+  const handleArchive = async () => {
+    if (!recordId) return;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.CONTACTS.BY_ID(recordId), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Contact archived');
+        onBack();
+      } else {
+        toast.error(data.message || 'Failed to archive contact');
+      }
+    } catch (error) {
+      console.error('Archive contact error:', error);
+      toast.error('Failed to archive contact');
+    }
   };
 
   return (

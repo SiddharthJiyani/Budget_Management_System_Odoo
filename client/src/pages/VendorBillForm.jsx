@@ -33,7 +33,6 @@ export default function VendorBillForm() {
     productName: '',
     quantity: 1,
     unitPrice: 0,
-    budgetAnalyticId: '',
   });
 
   useEffect(() => {
@@ -145,11 +144,11 @@ export default function VendorBillForm() {
       quantity: parseInt(productForm.quantity),
       unitPrice: parseFloat(productForm.unitPrice),
       totalPrice: parseInt(productForm.quantity) * parseFloat(productForm.unitPrice),
-      budgetAnalyticId: productForm.budgetAnalyticId || null,
+      // budgetAnalyticId will be auto-assigned by backend
     };
 
     setProducts([...products, newProduct]);
-    setProductForm({ productName: '', quantity: 1, unitPrice: 0, budgetAnalyticId: '' });
+    setProductForm({ productName: '', quantity: 1, unitPrice: 0 });
     setShowProductModal(false);
     toast.success('Product added successfully');
   };
@@ -365,8 +364,8 @@ export default function VendorBillForm() {
                 <span className="text-muted-foreground/40">→</span>
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${status === 'confirmed'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground/60'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground/60'
                     }`}
                 >
                   Confirmed
@@ -636,31 +635,11 @@ export default function VendorBillForm() {
                       onChange={(e) => setProductForm({ ...productForm, unitPrice: e.target.value })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Budget Analytics
-                    </label>
-                    <select
-                      value={productForm.budgetAnalyticId}
-                      onChange={(e) => setProductForm({ ...productForm, budgetAnalyticId: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-input text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">Auto-assign (Default)</option>
-                      {analytics.map((analytic) => (
-                        <option key={analytic._id} value={analytic._id}>
-                          {analytic.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Leave as "Auto-assign" to use automatic analytics assignment
-                    </p>
-                  </div>
                   <div className="flex justify-end gap-3 pt-4">
                     <Button
                       onClick={() => {
                         setShowProductModal(false);
-                        setProductForm({ productName: '', quantity: 1, unitPrice: 0, budgetAnalyticId: '' });
+                        setProductForm({ productName: '', quantity: 1, unitPrice: 0 });
                       }}
                       variant="outline"
                     >

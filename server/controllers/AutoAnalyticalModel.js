@@ -426,3 +426,143 @@ exports.testRuleMatching = async (req, res) => {
         });
     }
 };
+
+/**
+ * Get AI-powered analytics recommendations based on historical purchase data
+ * 
+ * NEW ENDPOINT: Uses LLM (Gemini/Groq) to analyze ALL previous orders and purchases
+ * to suggest analytics based on learned patterns.
+ * 
+ * This endpoint:
+ * 1. Fetches historical purchase orders filtered by vendor/product/category
+ * 2. Analyzes purchasing patterns and analytics assignments
+ * 3. Feeds data to AI (Gemini/OpenAI/Groq) for intelligent suggestions
+ * 4. Returns both AI recommendations AND statistical patterns
+ * 
+ * Use this for intelligent, pattern-based suggestions when:
+ * - Creating new purchase orders
+ * - Vendor bill entry
+ * - Budget planning based on historical spending
+ */
+exports.getAIRecommendation = async (req, res) => {
+    try {
+        const { productId, partnerId, productCategoryId, historicalLimit } = req.body;
+        const { getAIRecommendationWithHistory } = require("../services/AIRecommendationService");
+        
+        // At least one context field required
+        if (!productId && !partnerId && !productCategoryId) {
+            return res.status(400).json({
+                success: false,
+                message: "At least one of productId, partnerId, or productCategoryId is required",
+            });
+        }
+
+        // Build transaction context
+        const context = {
+            partnerId,
+            productId,
+            productCategoryId,
+        };
+
+        // Enrich context with names for better AI prompts
+        if (partnerId) {
+            const partner = await Contact.findById(partnerId).select('name tags').lean();
+            if (partner) {
+                context.partnerName = partner.name;
+                if (partner.tags && partner.tags.length > 0) {
+                    const tags = await PartnerTag.find({ _id: { $in: partner.tags } }).select('name').lean();
+                    context.partnerTagNames = tags.map(t => t.name);
+                }
+            }
+        }
+
+        if (productId) {
+            const product = await Product.findById(productId)
+                .select('name category')
+                .populate('category', 'name')
+                .lean();
+            if (product) {
+                context.productName = product.name;
+                context.productCategoryName = product.category?.name;
+                // If category not explicitly provided, use product's category
+                if (!productCategoryId && product.category) {
+                    context.productCategoryId = product.category._id.toString();
+                }
+            }
+        }
+
+        if (productCategoryId && !context.productCategoryName) {
+            const category = await Category.findById(productCategoryId).select('name').lean();
+            if (category) {
+                context.productCategoryName = category.name;
+            }
+        }
+
+        // Get all available analytics
+        const availableAnalytics = await AnalyticMaster.find({ status: 'confirmed' })
+            .select('name description type')
+            .lean();
+
+        if (availableAnalytics.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No confirmed analytics available in the system",
+            });
+        }
+
+        console.log(`[AI Recommendation API] Analyzing historical data for context:`, {
+            partner: context.partnerName,
+            product: context.productName,
+            category: context.productCategoryName,
+        });
+
+        // Call AI service with historical analysis
+        const aiResult = await getAIRecommendationWithHistory({
+            context,
+            availableAnalytics,
+            historicalLimit: historicalLimit || 50,
+            includeStatistical: true,
+        });
+
+        // Prepare response
+        const response = {
+            success: true,
+            message: "AI recommendation completed",
+            data: {
+                context: {
+                    partner: context.partnerName,
+                    product: context.productName,
+                    category: context.productCategoryName,
+                },
+                aiRecommendations: aiResult.recommendations,
+                statisticalRecommendations: aiResult.statisticalRecommendations,
+                historicalSummary: aiResult.historicalDataSummary,
+                metadata: {
+                    aiEnabled: aiResult.used,
+                    aiProvider: aiResult.provider,
+                    processingTime: aiResult.duration,
+                    error: aiResult.error,
+                },
+            },
+        };
+
+        // Log insights
+        console.log(`[AI Recommendation API] Results:`, {
+            aiRecommendations: aiResult.recommendations.length,
+            statisticalRecommendations: aiResult.statisticalRecommendations.length,
+            historicalRecords: aiResult.historicalDataSummary?.totalHistoricalRecords || 0,
+            aiUsed: aiResult.used,
+            duration: aiResult.duration,
+        });
+
+        return res.status(200).json(response);
+
+    } catch (error) {
+        console.error("[AI Recommendation API] Error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error generating AI recommendations",
+            error: error.message,
+        });
+    }
+};

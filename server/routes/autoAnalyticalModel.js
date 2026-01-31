@@ -10,6 +10,7 @@ const {
     archiveAutoAnalyticalModel,
     deleteAutoAnalyticalModel,
     testRuleMatching,
+    getAIRecommendation,
 } = require("../controllers/AutoAnalyticalModel");
 
 /**
@@ -32,7 +33,10 @@ router.delete("/:id", auth, deleteAutoAnalyticalModel);
 router.patch("/:id/confirm", auth, confirmAutoAnalyticalModel);
 router.patch("/:id/archive", auth, archiveAutoAnalyticalModel);
 
-// Debug/Testing endpoint
+// Debug/Testing endpoints
 router.post("/test-matching", auth, testRuleMatching);
+
+// AI-powered recommendation endpoint (NEW)
+router.post("/ai-recommend", auth, getAIRecommendation);
 
 module.exports = router;

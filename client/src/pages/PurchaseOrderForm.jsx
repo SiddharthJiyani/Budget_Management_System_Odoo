@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, Plus, X, AlertTriangle, Send, Download, Ban, FileText } from 'lucide-react';
+import { ArrowLeft, Home, Plus, X, AlertTriangle, Send, Download, Ban, FileText, Sparkles, TrendingUp } from 'lucide-react';
 import { Button, Card, Input, Select } from '../components/ui';
 import toast from 'react-hot-toast';
 import { API_ENDPOINTS, getAuthHeaders } from '../config/api';
@@ -29,7 +29,13 @@ export default function PurchaseOrderForm() {
     productName: '',
     quantity: 1,
     unitPrice: 0,
+    budgetAnalyticId: null,
   });
+  
+  // AI Recommendation State
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [showAISuggestion, setShowAISuggestion] = useState(false);
 
   useEffect(() => {
     fetchVendors();
@@ -39,6 +45,23 @@ export default function PurchaseOrderForm() {
       generatePoNumber();
     }
   }, [id]);
+
+  // Trigger AI recommendation when vendor and product are selected
+  useEffect(() => {
+    // Debounce the AI call - wait 800ms after user stops typing
+    const timeoutId = setTimeout(() => {
+      // Only trigger if we have vendor, product name (min 2 chars), and modal is open
+      if (formData.vendorId && productForm.productName && productForm.productName.length >= 2 && showProductModal) {
+        fetchAIRecommendation(formData.vendorId, productForm.productName);
+      } else {
+        setAiSuggestion(null);
+        setShowAISuggestion(false);
+      }
+    }, 800);
+
+    // Cleanup: cancel the timeout if dependencies change before 800ms
+    return () => clearTimeout(timeoutId);
+  }, [formData.vendorId, productForm.productName, showProductModal]);
 
   const fetchVendors = async () => {
     try {
@@ -169,6 +192,69 @@ export default function PurchaseOrderForm() {
     }
   };
 
+  // Fetch AI Analytics Recommendation
+  const fetchAIRecommendation = async (vendorId, productName) => {
+    if (!vendorId || !productName) {
+      setAiSuggestion(null);
+      setShowAISuggestion(false);
+      return;
+    }
+
+    setLoadingAI(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.PURCHASE_ORDERS.AI_RECOMMEND, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          partnerId: vendorId,
+          productId: null, // We only have product name, not ID in this form
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const topAI = data.data.aiRecommendations?.[0];
+        const topStat = data.data.statisticalRecommendations?.[0];
+        
+        // Prefer AI recommendation if confidence > 70%, otherwise use statistical
+        const recommendation = (topAI && topAI.confidence > 0.7) ? topAI : topStat;
+        
+        if (recommendation) {
+          setAiSuggestion({
+            analyticsId: recommendation.analyticsId,
+            analyticsName: recommendation.analyticsName,
+            confidence: recommendation.confidence,
+            reason: recommendation.reason,
+            source: topAI && topAI.confidence > 0.7 ? 'AI' : 'Pattern',
+            historicalRecords: data.data.historicalSummary?.totalHistoricalRecords || 0,
+          });
+          setShowAISuggestion(true);
+        } else {
+          setAiSuggestion(null);
+          setShowAISuggestion(false);
+        }
+      } else {
+        setAiSuggestion(null);
+        setShowAISuggestion(false);
+      }
+    } catch (error) {
+      console.error('AI recommendation failed:', error);
+      setAiSuggestion(null);
+      setShowAISuggestion(false);
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
+  // Close product modal and reset all states
+  const closeProductModal = () => {
+    setShowProductModal(false);
+    setProductForm({ productName: '', quantity: 1, unitPrice: 0, budgetAnalyticId: null });
+    setAiSuggestion(null);
+    setShowAISuggestion(false);
+  };
+
   const handleAddProduct = async () => {
     if (!productForm.productName || !productForm.quantity || !productForm.unitPrice) {
       toast.error('Please fill in all product fields');
@@ -177,34 +263,44 @@ export default function PurchaseOrderForm() {
 
     setIsLoading(true);
     try {
-      // Auto-assign analytics category
       const totalPrice = productForm.quantity * productForm.unitPrice;
-      const analyticsResponse = await fetch(API_ENDPOINTS.PURCHASE_ORDERS.AUTO_ASSIGN_ANALYTICS, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          productName: productForm.productName,
-          amount: totalPrice,
-        }),
-      });
+      let analyticsCategory = null;
+      let exceedsBudget = false;
 
-      const analyticsData = await analyticsResponse.json();
+      // Check if AI suggestion was applied (budgetAnalyticId is already set)
+      if (productForm.budgetAnalyticId) {
+        analyticsCategory = productForm.budgetAnalyticId;
+        // TODO: Could check budget here if needed
+      } else {
+        // Auto-assign analytics category using the existing API
+        const analyticsResponse = await fetch(API_ENDPOINTS.PURCHASE_ORDERS.AUTO_ASSIGN_ANALYTICS, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            productName: productForm.productName,
+            amount: totalPrice,
+          }),
+        });
+
+        const analyticsData = await analyticsResponse.json();
+        analyticsCategory = analyticsData.success ? analyticsData.data.analyticsCategory : null;
+        exceedsBudget = analyticsData.success ? analyticsData.data.exceedsBudget : false;
+      }
 
       const newProduct = {
         productName: productForm.productName,
         quantity: parseFloat(productForm.quantity),
         unitPrice: parseFloat(productForm.unitPrice),
         lineTotal: totalPrice,
-        budgetAnalyticId: analyticsData.success ? analyticsData.data.analyticsCategory : null,
-        exceedsBudget: analyticsData.success ? analyticsData.data.exceedsBudget : false,
+        budgetAnalyticId: analyticsCategory,
+        exceedsBudget: exceedsBudget,
       };
 
       setProducts([...products, newProduct]);
-      setShowProductModal(false);
-      setProductForm({ productName: '', quantity: 1, unitPrice: 0 });
+      closeProductModal();
 
-      if (analyticsData.success && analyticsData.data.exceedsBudget) {
-        toast.error(`Warning: This product exceeds the approved budget for ${analyticsData.data.analyticsCategory.name}`);
+      if (exceedsBudget && analyticsCategory) {
+        toast.error(`Warning: This product exceeds the approved budget for ${analyticsCategory.name}`);
       } else {
         toast.success('Product added successfully');
       }
@@ -685,7 +781,7 @@ export default function PurchaseOrderForm() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-foreground">Add Product</h2>
               <button
-                onClick={() => setShowProductModal(false)}
+                onClick={closeProductModal}
                 className="p-2 rounded-lg hover:bg-muted transition-colors"
               >
                 <X size={20} />
@@ -737,9 +833,86 @@ export default function PurchaseOrderForm() {
                 />
               </div>
 
+              {/* AI Suggestion Card */}
+              {loadingAI && (
+                <div className="bg-muted rounded-lg p-4 flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <p className="text-sm text-muted-foreground">
+                    Analyzing purchase patterns with AI...
+                  </p>
+                </div>
+              )}
+
+              {!loadingAI && showAISuggestion && aiSuggestion && (
+                <div 
+                  className={`rounded-lg p-4 border-2 ${
+                    aiSuggestion.confidence > 0.7 
+                      ? 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/40' 
+                      : 'bg-muted border-border'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      aiSuggestion.source === 'AI' 
+                        ? 'bg-primary/20' 
+                        : 'bg-muted-foreground/20'
+                    }`}>
+                      {aiSuggestion.source === 'AI' ? (
+                        <Sparkles size={20} className="text-primary" />
+                      ) : (
+                        <TrendingUp size={20} className="text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {aiSuggestion.source === 'AI' ? 'AI Recommendation' : 'Pattern Analysis'}
+                        </h3>
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          aiSuggestion.confidence > 0.7 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted-foreground/20 text-foreground'
+                        }`}>
+                          {Math.round(aiSuggestion.confidence * 100)}% match
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        Analytics: {aiSuggestion.analyticsName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {aiSuggestion.reason}
+                      </p>
+                      {aiSuggestion.historicalRecords > 0 && (
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Based on {aiSuggestion.historicalRecords} historical purchase{aiSuggestion.historicalRecords !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                      <Button
+                        onClick={() => {
+                          setProductForm({ 
+                            ...productForm, 
+                            budgetAnalyticId: {
+                              _id: aiSuggestion.analyticsId,
+                              name: aiSuggestion.analyticsName
+                            }
+                          });
+                          setShowAISuggestion(false);
+                          toast.success('AI suggestion applied');
+                        }}
+                        size="sm"
+                        variant="primary"
+                        className="w-full"
+                      >
+                        Apply Suggestion
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 mt-6">
                 <Button
-                  onClick={() => setShowProductModal(false)}
+                  onClick={closeProductModal}
                   variant="outline"
                 >
                   Cancel

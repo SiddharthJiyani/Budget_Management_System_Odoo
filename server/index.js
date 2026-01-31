@@ -65,13 +65,11 @@ app.use("/api/analytics", analyticMasterRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/vendors", vendorRoutes);
-app.use("/api/auto-analytical-models", autoAnalyticalModelRoutes);
+app.use("/api/auto-analytical", autoAnalyticalModelRoutes);
 // Portal routes for customers and vendors
 app.use("/api/portal", portalRoutes);
 app.use("/api/vendor-bills", vendorBillRoutes);
 app.use("/api/sales-orders", salesOrderRoutes);
-
-
 
 // Start the server
 app.listen(port, () => {

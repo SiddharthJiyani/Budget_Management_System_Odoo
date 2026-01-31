@@ -72,6 +72,7 @@ export const API_ENDPOINTS = {
         CONFIRM: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/confirm`,
         CANCEL: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/cancel`,
         AUTO_ASSIGN_ANALYTICS: `${API_BASE_URL}/api/purchase-orders/auto-assign-analytics`,
+        AI_RECOMMEND: `${API_BASE_URL}/api/auto-analytical/ai-recommend`,
         PDF: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/pdf`,
         SEND: (id) => `${API_BASE_URL}/api/purchase-orders/${id}/send`,
     },

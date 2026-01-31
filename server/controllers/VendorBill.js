@@ -1,11 +1,13 @@
 const VendorBill = require("../models/VendorBill");
 const Contact = require("../models/Contact");
 const PurchaseOrder = require("../models/PurchaseOrder");
+const Product = require("../models/Product");
 const AnalyticMaster = require("../models/AnalyticMaster");
 const Budget = require("../models/Budget");
 const PDFDocument = require('pdfkit');
 const mailSender = require("../utils/mailSender");
 const Razorpay = require("razorpay");
+const { recommendAnalytics } = require("../services/AutoAnalyticalService");
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -39,7 +41,7 @@ exports.createVendorBill = async (req, res) => {
         if (purchaseOrderId) {
             purchaseOrder = await PurchaseOrder.findById(purchaseOrderId)
                 .populate("lines.budgetAnalyticId");
-            
+
             if (!purchaseOrder) {
                 return res.status(404).json({
                     success: false,
@@ -87,22 +89,64 @@ exports.createVendorBill = async (req, res) => {
         // Generate bill number
         const billNumber = await VendorBill.getNextBillNumber();
 
-        // Process lines with budget analytics
+        // Process lines with auto-analytics assignment
+        // For each line without a manually specified budgetAnalyticId,
+        // we attempt to auto-assign based on configured rules
         const processedLines = [];
+
         for (const line of billLines) {
             const processedLine = {
+                productId: line.productId,
                 productName: line.productName,
                 quantity: line.quantity,
                 unitPrice: line.unitPrice,
                 lineTotal: line.quantity * line.unitPrice,
-                budgetAnalyticId: line.budgetAnalyticId,
+                autoAssigned: false,
+                analyticsOverridden: false,
+                autoAssignmentDetails: null,
                 exceedsBudget: false,
             };
 
-            // Check budget if analytics assigned
+            // Check if user manually provided analytics
             if (line.budgetAnalyticId) {
+                // User manually selected - no auto-assignment
+                processedLine.budgetAnalyticId = line.budgetAnalyticId;
+                processedLine.autoAssigned = false;
+                console.log(`[VendorBill] Line for product ${line.productId || line.productName}: User provided analytics ${line.budgetAnalyticId}`);
+            } else {
+                // No analytics provided - attempt auto-assignment
+                try {
+                    const recommendation = await recommendAnalytics({
+                        productId: line.productId,
+                        partnerId: vendorId,
+                    });
+
+                    if (recommendation.analyticsId) {
+                        processedLine.budgetAnalyticId = recommendation.analyticsId;
+                        processedLine.autoAssigned = true;
+                        processedLine.autoAssignmentDetails = {
+                            ruleId: recommendation.matchedRule?.id,
+                            ruleName: recommendation.matchedRule?.name,
+                            matchedFields: recommendation.matchedRule?.matchedFields || [],
+                            explanation: recommendation.explanation,
+                        };
+                        console.log(`[VendorBill] Line for product ${line.productId || line.productName}: Auto-assigned analytics - ${recommendation.explanation}`);
+                    } else {
+                        // No matching rule found - leave null
+                        processedLine.budgetAnalyticId = null;
+                        console.log(`[VendorBill] Line for product ${line.productId || line.productName}: No auto-assignment - ${recommendation.explanation}`);
+                    }
+                } catch (autoAssignError) {
+                    console.error(`[VendorBill] Auto-assignment error for product ${line.productId || line.productName}:`, autoAssignError);
+                    // On error, leave analytics null - don't block bill creation
+                    processedLine.budgetAnalyticId = null;
+                }
+            }
+
+            // Check budget if analytics assigned
+            if (processedLine.budgetAnalyticId) {
                 const budget = await Budget.findOne({
-                    budgetAnalyticId: line.budgetAnalyticId,
+                    budgetAnalyticId: processedLine.budgetAnalyticId,
                     status: { $in: ['confirmed', 'revised'] }
                 });
 
@@ -297,22 +341,87 @@ exports.updateVendorBill = async (req, res) => {
                 }
             }
 
-            // Process lines with budget analytics
-            const processedLines = [];
-            for (const line of lines) {
+            // Process lines with override detection
+            // If a line was auto-assigned and user changes analytics, mark as overridden
+            const existingLinesMap = new Map();
+            vendorBill.lines.forEach((line, index) => {
+                existingLinesMap.set(line._id?.toString(), {
+                    index,
+                    autoAssigned: line.autoAssigned,
+                    budgetAnalyticId: line.budgetAnalyticId?.toString(),
+                });
+            });
+
+            vendorBill.lines = await Promise.all(lines.map(async (line, index) => {
+                const existingLine = existingLinesMap.get(line._id?.toString());
+
                 const processedLine = {
+                    productId: line.productId,
                     productName: line.productName,
                     quantity: line.quantity,
                     unitPrice: line.unitPrice,
                     lineTotal: line.quantity * line.unitPrice,
-                    budgetAnalyticId: line.budgetAnalyticId,
                     exceedsBudget: false,
                 };
 
-                // Check budget if analytics assigned
+                // Handle analytics assignment and override detection
                 if (line.budgetAnalyticId) {
+                    processedLine.budgetAnalyticId = line.budgetAnalyticId;
+
+                    // Check if this is a manual override of an auto-assigned value
+                    if (existingLine?.autoAssigned &&
+                        existingLine.budgetAnalyticId !== line.budgetAnalyticId) {
+                        processedLine.autoAssigned = false;
+                        processedLine.analyticsOverridden = true;
+                        processedLine.autoAssignmentDetails = null; // Clear old details
+                        console.log(`[VendorBill] Line ${index}: Manual override - changed from auto-assigned ${existingLine.budgetAnalyticId} to ${line.budgetAnalyticId}`);
+                    } else if (existingLine) {
+                        // Preserve existing flags
+                        processedLine.autoAssigned = existingLine.autoAssigned || false;
+                        processedLine.analyticsOverridden = line.analyticsOverridden || false;
+                        processedLine.autoAssignmentDetails = line.autoAssignmentDetails;
+                    } else {
+                        // New line with manual analytics
+                        processedLine.autoAssigned = false;
+                        processedLine.analyticsOverridden = false;
+                    }
+                } else if (line.analyticsOverridden) {
+                    // Line was previously overridden, don't auto-assign again
+                    processedLine.budgetAnalyticId = null;
+                    processedLine.autoAssigned = false;
+                    processedLine.analyticsOverridden = true;
+                } else {
+                    // No analytics and not overridden - try auto-assignment
+                    try {
+                        const recommendation = await recommendAnalytics({
+                            productId: line.productId,
+                            partnerId: vendorId || vendorBill.vendorId,
+                        });
+
+                        if (recommendation.analyticsId) {
+                            processedLine.budgetAnalyticId = recommendation.analyticsId;
+                            processedLine.autoAssigned = true;
+                            processedLine.analyticsOverridden = false;
+                            processedLine.autoAssignmentDetails = {
+                                ruleId: recommendation.matchedRule?.id,
+                                ruleName: recommendation.matchedRule?.name,
+                                matchedFields: recommendation.matchedRule?.matchedFields || [],
+                                explanation: recommendation.explanation,
+                            };
+                        } else {
+                            processedLine.budgetAnalyticId = null;
+                            processedLine.autoAssigned = false;
+                        }
+                    } catch (err) {
+                        console.error(`[VendorBill] Auto-assignment error during update:`, err);
+                        processedLine.budgetAnalyticId = null;
+                    }
+                }
+
+                // Check budget if analytics assigned
+                if (processedLine.budgetAnalyticId) {
                     const budget = await Budget.findOne({
-                        budgetAnalyticId: line.budgetAnalyticId,
+                        budgetAnalyticId: processedLine.budgetAnalyticId,
                         status: { $in: ['confirmed', 'revised'] }
                     });
 
@@ -327,10 +436,8 @@ exports.updateVendorBill = async (req, res) => {
                     }
                 }
 
-                processedLines.push(processedLine);
-            }
-
-            vendorBill.lines = processedLines;
+                return processedLine;
+            }));
         }
 
         // Update other fields
@@ -621,7 +728,7 @@ exports.autoAssignAnalytics = async (req, res) => {
 
         // Simulate ML model for analytics assignment
         const analytics = await AnalyticMaster.find({ status: 'active' });
-        
+
         if (analytics.length === 0) {
             return res.status(200).json({
                 success: true,
@@ -708,7 +815,7 @@ exports.generateVendorBillPDF = async (req, res) => {
         }
 
         // Create PDF document
-        const doc = new PDFDocument({ 
+        const doc = new PDFDocument({
             margin: 40,
             size: 'A4'
         });
@@ -724,7 +831,7 @@ exports.generateVendorBillPDF = async (req, res) => {
         const formatAddress = (address) => {
             if (!address) return 'N/A';
             if (typeof address === 'string') return address;
-            
+
             const parts = [
                 address.street,
                 address.city,
@@ -732,7 +839,7 @@ exports.generateVendorBillPDF = async (req, res) => {
                 address.country,
                 address.pincode
             ].filter(part => part && part.trim() !== '');
-            
+
             return parts.join(', ');
         };
 
@@ -744,16 +851,16 @@ exports.generateVendorBillPDF = async (req, res) => {
 
         // Header with company name and styling
         doc.rect(0, 0, doc.page.width, 80).fill(primaryColor);
-        
+
         doc.fontSize(24)
-           .fillColor('white')
-           .font('Helvetica-Bold')
-           .text('VENDOR BILL', 50, 30, { align: 'center' });
+            .fillColor('white')
+            .font('Helvetica-Bold')
+            .text('VENDOR BILL', 50, 30, { align: 'center' });
 
         doc.fontSize(12)
-           .fillColor('white')
-           .font('Helvetica')
-           .text('Budget Management System', 50, 55, { align: 'center' });
+            .fillColor('white')
+            .font('Helvetica')
+            .text('Budget Management System', 50, 55, { align: 'center' });
 
         // Reset position and color
         doc.y = 120;
@@ -761,20 +868,20 @@ exports.generateVendorBillPDF = async (req, res) => {
 
         // Bill Header Section with background
         doc.rect(40, doc.y - 10, doc.page.width - 80, 80).fill(accentColor).stroke('#fecaca');
-        
+
         doc.fontSize(16)
-           .font('Helvetica-Bold')
-           .fillColor(primaryColor)
-           .text(`Bill #${vendorBill.billNumber}`, 60, doc.y + 10);
-        
+            .font('Helvetica-Bold')
+            .fillColor(primaryColor)
+            .text(`Bill #${vendorBill.billNumber}`, 60, doc.y + 10);
+
         doc.fontSize(11)
-           .font('Helvetica')
-           .fillColor(textColor)
-           .text(`Bill Date: ${new Date(vendorBill.billDate).toLocaleDateString()}`, 60, doc.y + 8)
-           .text(`Due Date: ${new Date(vendorBill.dueDate).toLocaleDateString()}`, 60, doc.y + 5)
-           .text(`Status: ${vendorBill.status.toUpperCase()}`, 60, doc.y + 5)
-           .text(`Payment Status: ${vendorBill.paymentStatus.replace('_', ' ').toUpperCase()}`, 60, doc.y + 5);
-        
+            .font('Helvetica')
+            .fillColor(textColor)
+            .text(`Bill Date: ${new Date(vendorBill.billDate).toLocaleDateString()}`, 60, doc.y + 8)
+            .text(`Due Date: ${new Date(vendorBill.dueDate).toLocaleDateString()}`, 60, doc.y + 5)
+            .text(`Status: ${vendorBill.status.toUpperCase()}`, 60, doc.y + 5)
+            .text(`Payment Status: ${vendorBill.paymentStatus.replace('_', ' ').toUpperCase()}`, 60, doc.y + 5);
+
         if (vendorBill.reference) {
             doc.text(`Reference: ${vendorBill.reference}`, 60, doc.y + 5);
         }
@@ -783,43 +890,43 @@ exports.generateVendorBillPDF = async (req, res) => {
 
         // Vendor Details Section
         doc.fontSize(14)
-           .font('Helvetica-Bold')
-           .fillColor(primaryColor)
-           .text('VENDOR DETAILS', 50, doc.y);
-        
+            .font('Helvetica-Bold')
+            .fillColor(primaryColor)
+            .text('VENDOR DETAILS', 50, doc.y);
+
         doc.y += 5;
         doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
         doc.y += 15;
 
         doc.fontSize(11)
-           .font('Helvetica')
-           .fillColor(textColor);
-        
+            .font('Helvetica')
+            .fillColor(textColor);
+
         const vendorName = vendorBill.vendorId?.name || 'N/A';
         const vendorEmail = vendorBill.vendorId?.email || 'N/A';
         const vendorPhone = vendorBill.vendorId?.phone || 'N/A';
         const vendorAddress = formatAddress(vendorBill.vendorId?.address);
 
         doc.font('Helvetica-Bold').text('Name: ', 60, doc.y, { continued: true })
-           .font('Helvetica').text(vendorName);
-        
+            .font('Helvetica').text(vendorName);
+
         doc.font('Helvetica-Bold').text('Email: ', 60, doc.y + 5, { continued: true })
-           .font('Helvetica').text(vendorEmail);
-        
+            .font('Helvetica').text(vendorEmail);
+
         doc.font('Helvetica-Bold').text('Phone: ', 60, doc.y + 5, { continued: true })
-           .font('Helvetica').text(vendorPhone);
-        
+            .font('Helvetica').text(vendorPhone);
+
         doc.font('Helvetica-Bold').text('Address: ', 60, doc.y + 5, { continued: true })
-           .font('Helvetica').text(vendorAddress, { width: 400 });
+            .font('Helvetica').text(vendorAddress, { width: 400 });
 
         doc.y += 40;
 
         // Products Section
         doc.fontSize(14)
-           .font('Helvetica-Bold')
-           .fillColor(primaryColor)
-           .text('PRODUCTS', 50, doc.y);
-        
+            .font('Helvetica-Bold')
+            .fillColor(primaryColor)
+            .text('PRODUCTS', 50, doc.y);
+
         doc.y += 5;
         doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
         doc.y += 20;
@@ -837,9 +944,9 @@ exports.generateVendorBillPDF = async (req, res) => {
 
         // Table header text
         doc.fontSize(10)
-           .font('Helvetica-Bold')
-           .fillColor(textColor);
-        
+            .font('Helvetica-Bold')
+            .fillColor(textColor);
+
         doc.text('PRODUCT', itemX, tableTop + 5);
         doc.text('ANALYTICS', analyticsX, tableTop + 5);
         doc.text('QTY', qtyX, tableTop + 5);
@@ -858,39 +965,39 @@ exports.generateVendorBillPDF = async (req, res) => {
 
             const productName = line.productName || 'N/A';
             const analyticsName = line.budgetAnalyticId?.name || 'N/A';
-            
+
             doc.fillColor(textColor);
             doc.text(productName, itemX, yPosition, { width: 130 });
             doc.text(analyticsName, analyticsX, yPosition, { width: 110 });
             doc.text(line.quantity.toString(), qtyX, yPosition);
             doc.text(`₹${line.unitPrice.toFixed(2)}`, priceX, yPosition);
             doc.text(`₹${line.lineTotal.toFixed(2)}`, totalX, yPosition);
-            
+
             // Warning for budget exceeded
             if (line.exceedsBudget) {
                 doc.fontSize(8)
-                   .fillColor('#dc2626')
-                   .text('⚠ Exceeds Budget', itemX, yPosition + 12);
+                    .fillColor('#dc2626')
+                    .text('⚠ Exceeds Budget', itemX, yPosition + 12);
                 doc.fontSize(10).fillColor(textColor);
             }
-            
+
             yPosition += 30;
         });
 
         // Total section
         yPosition += 10;
         doc.rect(50, yPosition - 5, doc.page.width - 100, 50).fill(primaryColor);
-        
+
         doc.fontSize(11)
-           .font('Helvetica-Bold')
-           .fillColor('white');
-        
+            .font('Helvetica-Bold')
+            .fillColor('white');
+
         doc.text('GRAND TOTAL:', priceX - 60, yPosition + 8);
         doc.text(`₹${vendorBill.grandTotal.toFixed(2)}`, totalX, yPosition + 6);
-        
+
         doc.text('PAID AMOUNT:', priceX - 60, yPosition + 20);
         doc.text(`₹${vendorBill.paidAmount.toFixed(2)}`, totalX, yPosition + 18);
-        
+
         doc.text('DUE AMOUNT:', priceX - 60, yPosition + 32);
         doc.text(`₹${vendorBill.dueAmount.toFixed(2)}`, totalX, yPosition + 30);
 
@@ -898,28 +1005,28 @@ exports.generateVendorBillPDF = async (req, res) => {
         if (vendorBill.notes && vendorBill.notes.trim() !== '') {
             doc.y = yPosition + 70;
             doc.fontSize(12)
-               .font('Helvetica-Bold')
-               .fillColor(primaryColor)
-               .text('NOTES', 50, doc.y);
-            
+                .font('Helvetica-Bold')
+                .fillColor(primaryColor)
+                .text('NOTES', 50, doc.y);
+
             doc.y += 5;
             doc.rect(40, doc.y, doc.page.width - 80, 2).fill(primaryColor);
             doc.y += 15;
-            
+
             doc.fontSize(10)
-               .font('Helvetica')
-               .fillColor(textColor)
-               .text(vendorBill.notes, 60, doc.y, { width: 480 });
+                .font('Helvetica')
+                .fillColor(textColor)
+                .text(vendorBill.notes, 60, doc.y, { width: 480 });
         }
 
         // Footer
         const footerY = doc.page.height - 60;
         doc.rect(0, footerY - 10, doc.page.width, 70).fill('#fef2f2');
-        
+
         doc.fontSize(8)
-           .fillColor(secondaryColor)
-           .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY, { align: 'center' })
-           .text('This is a computer-generated document.', 50, footerY + 15, { align: 'center' });
+            .fillColor(secondaryColor)
+            .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY, { align: 'center' })
+            .text('This is a computer-generated document.', 50, footerY + 15, { align: 'center' });
 
         // Finalize PDF
         doc.end();

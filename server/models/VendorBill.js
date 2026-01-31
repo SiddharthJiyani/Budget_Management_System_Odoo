@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// Vendor Bill Line Schema (embedded in VendorBill)
+// Vendor Bill Line Schema (embedded in VendorBill  
 const vendorBillLineSchema = new mongoose.Schema({
     productId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -32,6 +32,19 @@ const vendorBillLineSchema = new mongoose.Schema({
     exceedsBudget: {
         type: Boolean,
         default: false,
+    },
+    // Auto-analytics assignment tracking
+    autoAssigned: {
+        type: Boolean,
+        default: false,
+    },
+    analyticsOverridden: {
+        type: Boolean,
+        default: false,
+    },
+    autoAssignmentDetails: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
     },
 }, { _id: true });
 
@@ -107,7 +120,7 @@ const vendorBillSchema = new mongoose.Schema({
     dueDate: {
         type: Date,
         required: true,
-        default: function() {
+        default: function () {
             return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
         }
     },
@@ -163,7 +176,7 @@ const vendorBillSchema = new mongoose.Schema({
 vendorBillSchema.methods.calculateTotals = function () {
     this.grandTotal = this.lines.reduce((sum, line) => sum + (line.lineTotal || 0), 0);
     this.dueAmount = this.grandTotal - this.paidAmount;
-    
+
     // Update payment status
     if (this.paidAmount === 0) {
         this.paymentStatus = "not_paid";
@@ -173,7 +186,7 @@ vendorBillSchema.methods.calculateTotals = function () {
     } else {
         this.paymentStatus = "partial";
     }
-    
+
     return this;
 };
 
@@ -187,20 +200,20 @@ vendorBillSchema.pre('save', function (next) {
 vendorBillSchema.statics.getNextBillNumber = async function () {
     const year = new Date().getFullYear();
     const prefix = `BILL/${year}/`;
-    
+
     // Find the highest bill number for the current year
     const lastBill = await this.findOne(
         { billNumber: { $regex: `^${prefix}` } },
         {},
         { sort: { billNumber: -1 } }
     );
-    
+
     let nextNumber = 1;
     if (lastBill) {
         const lastNumber = parseInt(lastBill.billNumber.split('/').pop());
         nextNumber = lastNumber + 1;
     }
-    
+
     return `${prefix}${String(nextNumber).padStart(4, '0')}`;
 };
 

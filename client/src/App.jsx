@@ -26,6 +26,7 @@ import SaleInvoice from './pages/SaleInvoice'
 import SaleReceipt from './pages/SaleReceipt'
 import CustomerInvoicePortal from './pages/CustomerInvoicePortal'
 import MyInvoices from './pages/portal/MyInvoices'
+import PortalDashboard from './pages/portal/PortalDashboard'
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function App() {
             <Route path="/sale/invoice" element={<ProtectedRoute><SaleInvoice /></ProtectedRoute>} />
             <Route path="/sale/receipt" element={<ProtectedRoute><SaleReceipt /></ProtectedRoute>} />
             {/* Portal - for customers and vendors */}
+            <Route path="/portal" element={<ProtectedRoute><PortalDashboard /></ProtectedRoute>} />
             <Route path="/portal/invoices" element={<ProtectedRoute><MyInvoices /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

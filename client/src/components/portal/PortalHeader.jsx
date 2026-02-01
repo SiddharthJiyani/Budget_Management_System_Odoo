@@ -1,4 +1,4 @@
-import { FileText, LogOut } from 'lucide-react';
+import { FileText, LogOut, Home } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthProvider';
 import toast from 'react-hot-toast';
@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
  * Portal Header Component
  * 
  * Simplified header for portal users (customers/vendors).
- * Shows only: Logo, My Invoices link, User name, Logout
+ * Shows: Logo, Dashboard, My Invoices, User name, Logout
  * 
  * No admin menus (Account, Purchase, Sale)
  */
@@ -22,7 +22,8 @@ export default function PortalHeader() {
         navigate('/login');
     };
 
-    const isActive = location.pathname === '/portal/invoices';
+    const isDashboardActive = location.pathname === '/portal';
+    const isInvoicesActive = location.pathname === '/portal/invoices';
 
     return (
         <header className="header-container">
@@ -38,11 +39,18 @@ export default function PortalHeader() {
                         </span>
                     </div>
 
-                    {/* Center - My Invoices (single nav item) */}
-                    <div className="flex items-center">
+                    {/* Center - Navigation items */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => navigate('/portal')}
+                            className={`menu-item ${isDashboardActive ? 'menu-item-active' : ''}`}
+                        >
+                            <Home size={18} />
+                            <span className="font-semibold text-base">Dashboard</span>
+                        </button>
                         <button
                             onClick={() => navigate('/portal/invoices')}
-                            className={`menu-item ${isActive ? 'menu-item-active' : ''}`}
+                            className={`menu-item ${isInvoicesActive ? 'menu-item-active' : ''}`}
                         >
                             <FileText size={18} />
                             <span className="font-semibold text-base">My Invoices</span>

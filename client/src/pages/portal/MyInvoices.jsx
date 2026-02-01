@@ -24,6 +24,7 @@ export default function MyInvoices() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [payingDocId, setPayingDocId] = useState(null);
+    const [paymentLoading, setPaymentLoading] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'failed', null
 
     // Redirect admin users to dashboard
@@ -33,38 +34,39 @@ export default function MyInvoices() {
         }
     }, [user, authLoading, navigate]);
 
-    // Fetch invoices/bills
-    useEffect(() => {
-        async function fetchDocuments() {
-            if (!token) return;
+    // Fetch invoices/bills function
+    const fetchDocuments = async () => {
+        if (!token) return;
 
-            try {
-                setLoading(true);
-                setError(null);
+        try {
+            setLoading(true);
+            setError(null);
 
-                const response = await fetch(`${API_URL}/portal/my-invoices`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
+            const response = await fetch(`${API_URL}/portal/my-invoices`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (data.success) {
-                    setDocuments(data.data.documents);
-                    setDocumentType(data.data.documentType);
-                    setContactName(data.data.contactName);
-                } else {
-                    setError(data.message);
-                }
-            } catch (err) {
-                console.error('Fetch documents error:', err);
-                setError('Failed to load documents. Please try again.');
-            } finally {
-                setLoading(false);
+            if (data.success) {
+                setDocuments(data.data.documents);
+                setDocumentType(data.data.documentType);
+                setContactName(data.data.contactName);
+            } else {
+                setError(data.message);
             }
+        } catch (err) {
+            console.error('Fetch documents error:', err);
+            setError('Failed to load documents. Please try again.');
+        } finally {
+            setLoading(false);
         }
+    };
 
+    // Fetch invoices/bills on mount
+    useEffect(() => {
         fetchDocuments();
     }, [token]);
 
@@ -74,6 +76,7 @@ export default function MyInvoices() {
 
     const handlePayNow = async (doc) => {
         setPayingDocId(doc.id);
+        setPaymentLoading(true);
         resetStatus();
 
         try {
@@ -99,6 +102,7 @@ export default function MyInvoices() {
             if (!orderData.success) {
                 toast.error(orderData.message || 'Failed to create payment order');
                 setPayingDocId(null);
+                setPaymentLoading(false);
                 return;
             }
 
@@ -107,6 +111,7 @@ export default function MyInvoices() {
             if (!scriptLoaded) {
                 toast.error('Failed to load payment system');
                 setPayingDocId(null);
+                setPaymentLoading(false);
                 return;
             }
 
@@ -125,6 +130,8 @@ export default function MyInvoices() {
             );
             const detailsData = await detailsResponse.json();
 
+            setPaymentLoading(false); // Loading done before showing Razorpay
+
             // Step 5: Configure and open Razorpay checkout
             const options = {
                 key: keyData.key,
@@ -135,6 +142,7 @@ export default function MyInvoices() {
                 order_id: orderData.order.id,
                 handler: async function (response) {
                     // Payment successful, verify and update document
+                    setPaymentLoading(true);
                     try {
                         const verifyResponse = await fetch(
                             `${API_URL}/portal/payment/verify`,
@@ -159,17 +167,8 @@ export default function MyInvoices() {
 
                         if (verifyData.success) {
                             toast.success('Payment successful! 🎉');
-                            // Update document with actual response from backend
-                            setDocuments(prev => prev.map(d =>
-                                d.id === doc.id
-                                    ? {
-                                        ...d,
-                                        status: verifyData.data.balanceAmount === 0 ? 'paid' : 'partial',
-                                        paidAmount: verifyData.data.paidAmount,
-                                        amountDue: verifyData.data.balanceAmount,
-                                    }
-                                    : d
-                            ));
+                            // Refresh the invoices list
+                            await fetchDocuments();
                         } else {
                             toast.error('Payment verification failed');
                         }
@@ -178,17 +177,19 @@ export default function MyInvoices() {
                         toast.error('Payment verification failed');
                     }
                     setPayingDocId(null);
+                    setPaymentLoading(false);
                 },
                 modal: {
                     ondismiss: function () {
                         toast.info('Payment cancelled');
                         setPayingDocId(null);
+                        setPaymentLoading(false);
                     },
                 },
                 prefill: {
-                    name: detailsData.data?.customerName || '',
-                    email: detailsData.data?.customerEmail || '',
-                    contact: detailsData.data?.customerPhone || '',
+                    name: detailsData.data?.customerInfo?.name || '',
+                    email: detailsData.data?.customerInfo?.email || '',
+                    contact: detailsData.data?.customerInfo?.phone || '',
                 },
                 notes: {
                     documentNo: doc.documentNo,
@@ -205,6 +206,7 @@ export default function MyInvoices() {
                 toast.error('Payment failed');
                 console.error('Payment failed:', response.error);
                 setPayingDocId(null);
+                setPaymentLoading(false);
             });
 
             razorpay.open();
@@ -212,6 +214,7 @@ export default function MyInvoices() {
             console.error('Payment initiation error:', err);
             toast.error('Failed to initiate payment');
             setPayingDocId(null);
+            setPaymentLoading(false);
         }
     };
 

@@ -13,6 +13,7 @@ import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import CreateUser from './pages/CreateUser'
+import ManageUsers from './pages/ManageUsers'
 import MasterData from './pages/MasterData'
 import PurchaseOrderList from './pages/PurchaseOrderList'
 import PurchaseOrderForm from './pages/PurchaseOrderForm'
@@ -44,6 +45,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />
+            <Route path="/manage-users" element={<ProtectedRoute><ManageUsers /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute><MasterData /></ProtectedRoute>} />
             {/* Purchase Flow */}
             <Route path="/purchase/orders" element={<ProtectedRoute><PurchaseOrderList /></ProtectedRoute>} />

@@ -411,4 +411,81 @@ exports.forgotPassword = async (req, res) => {
 	}
 }
 
+// Link User to Contact
+exports.linkUserToContact = async (req, res) => {
+	try {
+		const { userId, contactId } = req.body;
+
+		if (!userId || !contactId) {
+			return res.status(400).json({
+				success: false,
+				message: "User ID and Contact ID are required",
+			});
+		}
+
+		// Check if user exists
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
+		// Check if contact exists
+		const Contact = require("../models/Contact");
+		const contact = await Contact.findById(contactId);
+		if (!contact) {
+			return res.status(404).json({
+				success: false,
+				message: "Contact not found",
+			});
+		}
+
+		// Link user to contact
+		user.contactId = contactId;
+		await user.save();
+
+		return res.status(200).json({
+			success: true,
+			message: `User ${user.email} linked to contact ${contact.name}`,
+			data: {
+				userId: user._id,
+				userEmail: user.email,
+				contactId: contact._id,
+				contactName: contact.name,
+			},
+		});
+	} catch (error) {
+		console.error("Link user to contact error:", error);
+		return res.status(500).json({
+			success: false,
+			message: "Failed to link user to contact",
+			error: error.message,
+		});
+	}
+};
+
+// Get all users with their linked contacts
+exports.getAllUsers = async (req, res) => {
+	try {
+		const users = await User.find()
+			.select('-password -token')
+			.populate('contactId', 'name email phone')
+			.sort({ createdAt: -1 });
+
+		return res.status(200).json({
+			success: true,
+			data: users,
+		});
+	} catch (error) {
+		console.error("Get all users error:", error);
+		return res.status(500).json({
+			success: false,
+			message: "Failed to fetch users",
+			error: error.message,
+		});
+	}
+};
+
 

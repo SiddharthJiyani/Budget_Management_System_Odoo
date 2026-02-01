@@ -1,6 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { signup, login, sendotp, forgotPassword, checkLoginId, createUser } = require("../controllers/Auth");
+const { signup, login, sendotp, forgotPassword, checkLoginId, createUser, linkUserToContact, getAllUsers } = require("../controllers/Auth");
 const passport = require("../config/passport");
 const { auth, isAdmin } = require("../middleware/auth");
 const router = express.Router();
@@ -12,8 +12,10 @@ router.post("/sendotp", sendotp);
 router.post("/forgotpassword", forgotPassword);
 router.post("/check-loginid", checkLoginId);
 
-// Protected admin-only route
+// Protected admin-only routes
 router.post("/create-user", auth, isAdmin, createUser);
+router.post("/link-user-contact", auth, isAdmin, linkUserToContact);
+router.get("/all-users", auth, isAdmin, getAllUsers);
 
 // Check if Google OAuth is configured
 const isGoogleConfigured = () => {

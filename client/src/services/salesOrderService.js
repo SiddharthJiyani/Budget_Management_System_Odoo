@@ -1,11 +1,9 @@
-import { getAuthHeaders } from '../config/api';
-
-const API_URL = 'http://localhost:4000/api/sales-orders';
+import { getAuthHeaders, API_ENDPOINTS } from '../config/api';
 
 // Create Sales Order
 export const createSalesOrder = async (data) => {
     try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.BASE, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
@@ -27,7 +25,7 @@ export const createSalesOrder = async (data) => {
 export const getAllSalesOrders = async (filters = {}) => {
     try {
         const queryParams = new URLSearchParams(filters).toString();
-        const url = queryParams ? `${API_URL}?${queryParams}` : API_URL;
+        const url = queryParams ? `${API_ENDPOINTS.SALES_ORDERS.BASE}?${queryParams}` : API_ENDPOINTS.SALES_ORDERS.BASE;
 
         const response = await fetch(url, {
             method: 'GET',
@@ -49,7 +47,7 @@ export const getAllSalesOrders = async (filters = {}) => {
 // Get Sales Order by ID
 export const getSalesOrderById = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.BY_ID(id), {
             method: 'GET',
             headers: getAuthHeaders(),
         });
@@ -69,7 +67,7 @@ export const getSalesOrderById = async (id) => {
 // Update Sales Order
 export const updateSalesOrder = async (id, data) => {
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.BY_ID(id), {
             method: 'PUT',
             headers: getAuthHeaders(),
             body: JSON.stringify(data),
@@ -90,7 +88,7 @@ export const updateSalesOrder = async (id, data) => {
 // Confirm Sales Order
 export const confirmSalesOrder = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}/confirm`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.CONFIRM(id), {
             method: 'PATCH',
             headers: getAuthHeaders(),
         });
@@ -110,7 +108,7 @@ export const confirmSalesOrder = async (id) => {
 // Cancel Sales Order
 export const cancelSalesOrder = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}/cancel`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.CANCEL(id), {
             method: 'PATCH',
             headers: getAuthHeaders(),
         });
@@ -127,11 +125,73 @@ export const cancelSalesOrder = async (id) => {
     }
 };
 
+// Create Payment Order (Razorpay)
+export const createPaymentOrder = async (id) => {
+    try {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.CREATE_PAYMENT(id), {
+            method: 'POST',
+            headers: getAuthHeaders(),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to create payment order');
+        }
+
+        return result;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Verify Payment (Razorpay)
+export const verifyPayment = async (id, paymentData) => {
+    try {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.VERIFY_PAYMENT(id), {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(paymentData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to verify payment');
+        }
+
+        return result;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Record Manual Payment
+export const recordManualPayment = async (id, paymentData) => {
+    try {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.RECORD_PAYMENT(id), {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(paymentData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to record payment');
+        }
+
+        return result;
+    } catch (error) {
+        throw error;
+    }
+};
+
 // Download Sales Order PDF
 export const downloadSalesOrderPDF = async (id) => {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/${id}/pdf`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.PDF(id), {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -162,7 +222,7 @@ export const downloadSalesOrderPDF = async (id) => {
 // Send Sales Order to Customer
 export const sendSalesOrderToCustomer = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}/send`, {
+        const response = await fetch(API_ENDPOINTS.SALES_ORDERS.SEND(id), {
             method: 'POST',
             headers: getAuthHeaders(),
         });

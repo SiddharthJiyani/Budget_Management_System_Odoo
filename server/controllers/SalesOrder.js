@@ -2,11 +2,19 @@ const SalesOrder = require("../models/SalesOrder");
 const Contact = require("../models/Contact");
 const PDFDocument = require('pdfkit');
 const mailSender = require("../utils/mailSender");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 // Create Sales Order
 exports.createSalesOrder = async (req, res) => {
     try {
-        const { customerId, reference, soDate, lines, notes } = req.body;
+        const { customerId, reference, soDate, dueDate, lines, notes } = req.body;
 
         // Validate customer exists
         if (!customerId) {
@@ -77,6 +85,7 @@ exports.createSalesOrder = async (req, res) => {
             customerId,
             reference,
             soDate: soDate || new Date(),
+            dueDate: dueDate || new Date(),
             lines: processedLines,
             notes,
             createdBy: req.user.id,
@@ -255,6 +264,7 @@ exports.updateSalesOrder = async (req, res) => {
         // Update other fields
         if (reference !== undefined) salesOrder.reference = reference;
         if (soDate) salesOrder.soDate = soDate;
+        if (dueDate) salesOrder.dueDate = dueDate; // Added dueDate
         if (notes !== undefined) salesOrder.notes = notes;
 
         // Ensure totals are calculated correctly
@@ -689,6 +699,177 @@ exports.sendSalesOrderToCustomer = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Error sending sales order",
+            error: error.message,
+        });
+    }
+};
+// Create Razorpay Payment Order
+exports.createPaymentOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const salesOrder = await SalesOrder.findById(id)
+            .populate("customerId", "name email phone");
+
+        if (!salesOrder) {
+            return res.status(404).json({
+                success: false,
+                message: "Sales Order not found",
+            });
+        }
+
+        if (salesOrder.amountDue <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Sales Order is already fully paid",
+            });
+        }
+
+        // Create Razorpay order
+        const options = {
+            amount: Math.round(salesOrder.amountDue * 100), // Amount in paise
+            currency: "INR",
+            receipt: salesOrder.soNumber,
+            notes: {
+                soId: salesOrder._id.toString(),
+                soNumber: salesOrder.soNumber,
+                customerId: salesOrder.customerId._id.toString(),
+            },
+        };
+
+        const razorpayOrder = await razorpay.orders.create(options);
+
+        // Save Razorpay order ID
+        salesOrder.razorpayOrderId = razorpayOrder.id;
+        await salesOrder.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Payment order created successfully",
+            data: {
+                orderId: razorpayOrder.id,
+                amount: salesOrder.amountDue,
+                currency: "INR",
+                key: process.env.RAZORPAY_KEY_ID,
+                soNumber: salesOrder.soNumber,
+                customerName: salesOrder.customerId.name,
+                customerEmail: salesOrder.customerId.email,
+                customerContact: salesOrder.customerId.phone,
+            },
+        });
+    } catch (error) {
+        console.error("Create payment order error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error creating payment order",
+            error: error.message,
+        });
+    }
+};
+
+// Verify Razorpay Payment
+exports.verifyPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+        const salesOrder = await SalesOrder.findById(id);
+        if (!salesOrder) {
+            return res.status(404).json({
+                success: false,
+                message: "Sales Order not found",
+            });
+        }
+
+        // Verify signature
+        const generated_signature = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest("hex");
+
+        if (generated_signature !== razorpay_signature) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment verification failed - Invalid signature",
+            });
+        }
+
+        // Payment verified successfully - update SO
+        const paymentAmount = salesOrder.amountDue;
+        salesOrder.paidViaBank = (salesOrder.paidViaBank || 0) + paymentAmount;
+        salesOrder.razorpayPaymentId = razorpay_payment_id;
+        salesOrder.razorpaySignature = razorpay_signature;
+
+        // Calculate totals will auto-update payment status
+        salesOrder.calculateTotals();
+        await salesOrder.save();
+
+        await salesOrder.populate([
+            { path: 'customerId', select: 'name email phone address' },
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: "Payment verified and recorded successfully",
+            data: salesOrder,
+        });
+    } catch (error) {
+        console.error("Verify payment error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error verifying payment",
+            error: error.message,
+        });
+    }
+};
+
+// Record Manual Payment (Cash/Offline)
+exports.recordManualPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { cashAmount = 0, bankAmount = 0 } = req.body;
+
+        if (cashAmount < 0 || bankAmount < 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment amounts cannot be negative",
+            });
+        }
+
+        if (cashAmount === 0 && bankAmount === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "At least one payment amount must be greater than 0",
+            });
+        }
+
+        const salesOrder = await SalesOrder.findById(id);
+        if (!salesOrder) {
+            return res.status(404).json({
+                success: false,
+                message: "Sales Order not found",
+            });
+        }
+
+        // Record payment
+        salesOrder.recordPayment(parseFloat(cashAmount), parseFloat(bankAmount));
+        await salesOrder.save();
+
+        await salesOrder.populate([
+            { path: 'customerId', select: 'name email phone address' },
+            { path: 'createdBy', select: 'firstName lastName email' }
+        ]);
+
+        return res.status(200).json({
+            success: true,
+            message: "Payment recorded successfully",
+            data: salesOrder,
+        });
+    } catch (error) {
+        console.error("Record manual payment error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error recording payment",
             error: error.message,
         });
     }

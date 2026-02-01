@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Plus, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button, Card } from '../ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -11,20 +11,27 @@ import {
     cancelSalesOrder,
     downloadSalesOrderPDF,
     sendSalesOrderToCustomer,
+    createPaymentOrder,
+    verifyPayment,
 } from '../../services/salesOrderService';
 import { API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 
 export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'failed'
     const [customers, setCustomers] = useState([]);
     const [formData, setFormData] = useState({
         customerId: '',
         reference: '',
         soDate: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
         lines: [{ productName: '', quantity: 1, unitPrice: 0 }],
         notes: '',
         status: 'draft',
+        paymentStatus: 'not_paid',
+        amountDue: 0,
     });
 
     useEffect(() => {
@@ -62,11 +69,16 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
                     customerId: so.customerId?._id || '',
                     reference: so.reference || '',
                     soDate: so.soDate ? new Date(so.soDate).toISOString().split('T')[0] : '',
+                    dueDate: so.dueDate ? new Date(so.dueDate).toISOString().split('T')[0] : '',
                     lines: so.lines || [{ productName: '', quantity: 1, unitPrice: 0 }],
                     notes: so.notes || '',
                     status: so.status || 'draft',
                     soNumber: so.soNumber,
                     grandTotal: so.grandTotal,
+                    paymentStatus: so.paymentStatus || 'not_paid',
+                    amountDue: so.amountDue || 0,
+                    paidViaCash: so.paidViaCash || 0,
+                    paidViaBank: so.paidViaBank || 0,
                 });
             }
         } catch (error) {
@@ -234,6 +246,74 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
         }
     };
 
+    // Handle Payment (Razorpay)
+    const handlePay = async () => {
+        if (!recordId) return;
+
+        try {
+            setPaymentLoading(true);
+            // 1. Create Order
+            const orderResponse = await createPaymentOrder(recordId);
+
+            if (!orderResponse.success) {
+                throw new Error(orderResponse.message);
+            }
+
+            const { orderId, amount, currency, key, soNumber, customerName, customerEmail, customerContact } = orderResponse.data;
+
+            // 2. Open Razorpay Modal
+            const options = {
+                key: key,
+                amount: amount,
+                currency: currency,
+                name: "Budget Management System",
+                description: `Payment for Sales Order ${soNumber}`,
+                order_id: orderId,
+                handler: async function (response) {
+                    try {
+                        // 3. Verify Payment
+                        const verifyResponse = await verifyPayment(recordId, {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
+
+                        if (verifyResponse.success) {
+                            setPaymentStatus('success');
+                            toast.success('Payment successful!');
+                            fetchSalesOrder(); // Refresh data
+                        } else {
+                            throw new Error('Payment verification failed');
+                        }
+                    } catch (error) {
+                        console.error('Verification error:', error);
+                        setPaymentStatus('failed');
+                        toast.error(error.message || 'Payment verification failed');
+                    }
+                },
+                prefill: {
+                    name: customerName,
+                    email: customerEmail,
+                    contact: customerContact,
+                },
+                theme: {
+                    color: "#3b82f6",
+                },
+            };
+
+            const razorpay = new window.Razorpay(options);
+            razorpay.on('payment.failed', function (response) {
+                toast.error('Payment failed. Please try again.');
+            });
+            razorpay.open();
+        } catch (error) {
+            console.error('Payment error:', error);
+            toast.error(error.message || 'Failed to initiate payment');
+        } finally {
+            setPaymentLoading(false);
+        }
+    };
+
     const statusSteps = ['Draft', 'Confirmed', 'Cancelled'];
     const getStatusIndex = () => {
         switch (formData.status) {
@@ -249,7 +329,8 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
     if (loading && recordId) {
         return (
             <div className="animate-fadeIn p-8 text-center">
-                <p className="text-muted-foreground">Loading sales order...</p>
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                <p className="text-muted-foreground mt-4">Loading sales order...</p>
             </div>
         );
     }
@@ -263,6 +344,27 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
                     <p className="text-sm text-muted-foreground">Form View</p>
                 </div>
             </div>
+
+            {/* Payment Status Messages */}
+            {paymentStatus === 'success' && (
+                <div className="mb-4 flex gap-3 p-4 rounded-lg border border-success/30 bg-success/10">
+                    <CheckCircle className="w-5 h-5 text-success mt-0.5" />
+                    <div>
+                        <p className="font-medium text-success">Payment Successful</p>
+                        <p className="text-sm text-success/80">Payment has been received.</p>
+                    </div>
+                </div>
+            )}
+
+            {paymentStatus === 'failed' && (
+                <div className="mb-4 flex gap-3 p-4 rounded-lg border border-destructive/30 bg-destructive/10">
+                    <XCircle className="w-5 h-5 text-destructive mt-0.5" />
+                    <div>
+                        <p className="font-medium text-destructive">Payment Failed</p>
+                        <p className="text-sm text-destructive/80">Please try again.</p>
+                    </div>
+                </div>
+            )}
 
             {/* Main Form Card */}
             <Card className="overflow-hidden p-0">
@@ -306,6 +408,21 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
 
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-primary uppercase tracking-wide">
+                                Due Date *
+                            </label>
+                            <input
+                                type="date"
+                                name="dueDate"
+                                value={formData.dueDate}
+                                onChange={handleInputChange}
+                                disabled={!isDraft}
+                                required
+                                className="w-full px-3 py-1.5 rounded-md text-sm bg-input text-foreground neu-input focus-ring disabled:opacity-50"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-primary uppercase tracking-wide">
                                 Customer Name *
                             </label>
                             <select
@@ -337,6 +454,21 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
                                 className="w-full px-3 py-1.5 rounded-md text-sm bg-input text-foreground placeholder-muted-foreground neu-input focus-ring disabled:opacity-50"
                                 placeholder="Enter reference"
                             />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-primary uppercase tracking-wide">
+                                Payment Status
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 text-xs font-semibold rounded ${formData.paymentStatus === 'paid' ? 'bg-success/20 text-success' :
+                                    formData.paymentStatus === 'partial' ? 'bg-orange-100 text-orange-600' :
+                                        'bg-destructive/20 text-destructive'
+                                    }`}>
+                                    {formData.paymentStatus === 'paid' ? 'Paid' :
+                                        formData.paymentStatus === 'partial' ? 'Partial' : 'Not Paid'}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -376,6 +508,23 @@ export default function SalesOrderForm({ recordId, onBack, onHome, onNew }) {
                         >
                             Cancel
                         </Button>
+                        {recordId && formData.status === 'confirmed' && (
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={handlePay}
+                                disabled={paymentLoading || formData.paymentStatus === 'paid'}
+                            >
+                                {paymentLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Pay'
+                                )}
+                            </Button>
+                        )}
                     </div>
 
                     {/* Status Ribbon */}

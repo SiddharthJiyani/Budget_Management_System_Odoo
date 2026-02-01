@@ -52,6 +52,7 @@ const autoAnalyticalModelRoutes = require("./routes/autoAnalyticalModel");
 const portalRoutes = require("./routes/portal");
 const vendorBillRoutes = require("./routes/vendorBill");
 const salesOrderRoutes = require("./routes/salesOrder");
+const customerInvoiceRoutes = require("./routes/customerInvoice");
 
 app.use("/api/auth", userRoutes);
 app.use("/api/files", fileUploadRoutes);
@@ -70,6 +71,7 @@ app.use("/api/auto-analytical", autoAnalyticalModelRoutes);
 app.use("/api/portal", portalRoutes);
 app.use("/api/vendor-bills", vendorBillRoutes);
 app.use("/api/sales-orders", salesOrderRoutes);
+app.use("/api/customer-invoices", customerInvoiceRoutes);
 
 // Start the server
 app.listen(port, () => {

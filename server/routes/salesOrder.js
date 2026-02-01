@@ -10,6 +10,9 @@ const {
     cancelSalesOrder,
     generateSalesOrderPDF,
     sendSalesOrderToCustomer,
+    createPaymentOrder,
+    verifyPayment,
+    recordManualPayment,
 } = require("../controllers/SalesOrder");
 
 // All routes require authentication
@@ -24,6 +27,11 @@ router.put("/:id", updateSalesOrder);
 // Sales Order action routes
 router.patch("/:id/confirm", confirmSalesOrder);
 router.patch("/:id/cancel", cancelSalesOrder);
+
+// Payment routes
+router.post("/:id/create-payment", createPaymentOrder);
+router.post("/:id/verify-payment", verifyPayment);
+router.post("/:id/record-payment", recordManualPayment);
 
 // PDF and email routes
 router.get("/:id/pdf", generateSalesOrderPDF);

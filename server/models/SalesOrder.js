@@ -56,16 +56,50 @@ const salesOrderSchema = new mongoose.Schema({
         default: Date.now,
         index: true,
     },
+    dueDate: {
+        type: Date,
+        required: [true, "Due date is required"],
+        index: true,
+    },
     status: {
         type: String,
         enum: ["draft", "confirmed", "cancelled"],
         default: "draft",
         index: true,
     },
+    paymentStatus: {
+        type: String,
+        enum: ["not_paid", "partial", "paid"],
+        default: "not_paid",
+        index: true,
+    },
     lines: [salesOrderLineSchema],
     grandTotal: {
         type: Number,
         default: 0,
+    },
+    paidViaCash: {
+        type: Number,
+        default: 0,
+        min: [0, "Paid via cash cannot be negative"],
+    },
+    paidViaBank: {
+        type: Number,
+        default: 0,
+        min: [0, "Paid via bank cannot be negative"],
+    },
+    amountDue: {
+        type: Number,
+        default: 0,
+    },
+    razorpayOrderId: {
+        type: String,
+    },
+    razorpayPaymentId: {
+        type: String,
+    },
+    razorpaySignature: {
+        type: String,
     },
     sentToCustomer: {
         type: Boolean,
@@ -118,9 +152,32 @@ salesOrderSchema.methods.calculateTotals = function () {
     this.grandTotal = this.lines.reduce((sum, line) => sum + (line.lineTotal || 0), 0);
 };
 
-// Pre-save middleware to calculate totals
-salesOrderSchema.pre('save', function (next) {
+// Instance method to record payment
+salesOrderSchema.methods.recordPayment = function (cashAmount, bankAmount) {
+    this.paidViaCash = (this.paidViaCash || 0) + parseFloat(cashAmount || 0);
+    this.paidViaBank = (this.paidViaBank || 0) + parseFloat(bankAmount || 0);
     this.calculateTotals();
+};
+
+// Pre-save middleware to calculate totals and payment status
+salesOrderSchema.pre('save', function (next) {
+    // Calculate line totals and grand total
+    this.calculateTotals();
+
+    // Calculate amount due
+    const totalPaid = (this.paidViaCash || 0) + (this.paidViaBank || 0);
+    this.amountDue = this.grandTotal - totalPaid;
+
+    // Auto-update payment status
+    if (totalPaid === 0) {
+        this.paymentStatus = 'not_paid';
+    } else if (totalPaid >= this.grandTotal) {
+        this.paymentStatus = 'paid';
+        this.amountDue = 0; // Ensure no negative amount due
+    } else {
+        this.paymentStatus = 'partial';
+    }
+
     next();
 });
 

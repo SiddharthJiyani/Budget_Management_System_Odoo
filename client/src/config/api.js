@@ -66,6 +66,19 @@ export const API_ENDPOINTS = {
     },
 
     // Purchase Order endpoints
+    SALES_ORDERS: {
+        BASE: `${API_BASE_URL}/api/sales-orders`,
+        BY_ID: (id) => `${API_BASE_URL}/api/sales-orders/${id}`,
+        CONFIRM: (id) => `${API_BASE_URL}/api/sales-orders/${id}/confirm`,
+        CANCEL: (id) => `${API_BASE_URL}/api/sales-orders/${id}/cancel`,
+        PDF: (id) => `${API_BASE_URL}/api/sales-orders/${id}/pdf`,
+        SEND: (id) => `${API_BASE_URL}/api/sales-orders/${id}/send`,
+        CREATE_PAYMENT: (id) => `${API_BASE_URL}/api/sales-orders/${id}/create-payment`,
+        VERIFY_PAYMENT: (id) => `${API_BASE_URL}/api/sales-orders/${id}/verify-payment`,
+        RECORD_PAYMENT: (id) => `${API_BASE_URL}/api/sales-orders/${id}/record-payment`,
+    },
+
+    // Purchase Order endpoints
     PURCHASE_ORDERS: {
         BASE: `${API_BASE_URL}/api/purchase-orders`,
         BY_ID: (id) => `${API_BASE_URL}/api/purchase-orders/${id}`,
@@ -91,6 +104,19 @@ export const API_ENDPOINTS = {
         FROM_PO: (poId) => `${API_BASE_URL}/api/vendor-bills/from-po/${poId}`,
     },
 
+    // Customer Invoice endpoints
+    CUSTOMER_INVOICES: {
+        BASE: `${API_BASE_URL}/api/customer-invoices`,
+        BY_ID: (id) => `${API_BASE_URL}/api/customer-invoices/${id}`,
+        CONFIRM: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/confirm`,
+        CANCEL: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/cancel`,
+        PDF: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/pdf`,
+        SEND: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/send`,
+        CREATE_PAYMENT: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/create-payment`,
+        VERIFY_PAYMENT: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/verify-payment`,
+        RECORD_PAYMENT: (id) => `${API_BASE_URL}/api/customer-invoices/${id}/record-payment`,
+    },
+
     // File upload endpoints
     FILES: {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,
@@ -98,6 +124,12 @@ export const API_ENDPOINTS = {
         DELETE: `${API_BASE_URL}/api/files/delete`,
         GET_ALL: `${API_BASE_URL}/api/files`,
         GET_USER_FILES: `${API_BASE_URL}/api/files/user`,
+    },
+
+    // Auto-Analytical endpoints
+    AUTO_ANALYTICS: {
+        BASE: `${API_BASE_URL}/api/auto-analytical`,
+        AI_RECOMMEND: `${API_BASE_URL}/api/auto-analytical/ai-recommend`,
     },
 
     // Payment endpoints

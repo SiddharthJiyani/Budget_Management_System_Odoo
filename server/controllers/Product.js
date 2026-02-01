@@ -4,7 +4,7 @@ const Category = require("../models/Category");
 // Create Product
 exports.createProduct = async (req, res) => {
     try {
-        const { name, category, salesPrice, purchasePrice } = req.body;
+        const { name, category, salesPrice, purchasePrice, vendors } = req.body;
 
         // Validate required fields
         if (!name || !category || salesPrice === undefined || purchasePrice === undefined) {
@@ -29,12 +29,14 @@ exports.createProduct = async (req, res) => {
             category,
             salesPrice,
             purchasePrice,
+            vendors: vendors || [],
             status: 'new',
             createdBy: req.user.id,
         });
 
-        // Populate category before sending response
+        // Populate category and vendors before sending response
         await product.populate('category');
+        await product.populate('vendors', 'name email');
 
         return res.status(201).json({
             success: true,
@@ -54,7 +56,7 @@ exports.createProduct = async (req, res) => {
 // Get all products with filtering
 exports.getAllProducts = async (req, res) => {
     try {
-        const { status, category, search, page = 1, limit = 10 } = req.query;
+        const { status, category, search, vendorId, page = 1, limit = 10 } = req.query;
 
         // Build query
         let query = {};
@@ -67,10 +69,15 @@ exports.getAllProducts = async (req, res) => {
         if (search) {
             query.name = { $regex: search, $options: 'i' };
         }
+        // Filter by vendor if vendorId is provided
+        if (vendorId) {
+            query.vendors = vendorId;
+        }
 
         // Execute query with pagination
         const products = await Product.find(query)
             .populate('category', 'name color description')
+            .populate('vendors', 'name email')
             .populate('createdBy', 'firstName lastName email')
             .sort({ createdAt: -1 })
             .limit(limit * 1)
@@ -106,6 +113,7 @@ exports.getProductById = async (req, res) => {
 
         const product = await Product.findById(id)
             .populate('category', 'name color description')
+            .populate('vendors', 'name email')
             .populate('createdBy', 'firstName lastName email');
 
         if (!product) {
@@ -134,7 +142,7 @@ exports.getProductById = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, category, salesPrice, purchasePrice, status } = req.body;
+        const { name, category, salesPrice, purchasePrice, status, vendors } = req.body;
 
         const product = await Product.findById(id);
         if (!product) {
@@ -161,9 +169,11 @@ exports.updateProduct = async (req, res) => {
         if (salesPrice !== undefined) product.salesPrice = salesPrice;
         if (purchasePrice !== undefined) product.purchasePrice = purchasePrice;
         if (status) product.status = status;
+        if (vendors !== undefined) product.vendors = vendors;
 
         await product.save();
         await product.populate('category');
+        await product.populate('vendors', 'name email');
 
         return res.status(200).json({
             success: true,

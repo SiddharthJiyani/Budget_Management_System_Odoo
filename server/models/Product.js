@@ -24,6 +24,11 @@ const productSchema = new mongoose.Schema({
         required: [true, "Purchase price is required"],
         min: [0, "Purchase price cannot be negative"],
     },
+    // Vendors who can supply this product
+    vendors: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Contact",
+    }],
     status: {
         type: String,
         enum: ['new', 'confirmed', 'archived'],

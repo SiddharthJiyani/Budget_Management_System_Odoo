@@ -12,16 +12,20 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
     category: '',
     salesPrice: '',
     purchasePrice: '',
+    vendors: [],
   });
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const [vendorOptions, setVendorOptions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isVendorsLoading, setIsVendorsLoading] = useState(false);
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Load categories on mount
+  // Load categories and vendors on mount
   useEffect(() => {
     loadCategories();
+    loadVendors();
   }, []);
 
   // Helper to check if a string looks like a MongoDB ObjectId (24 hex chars)
@@ -60,6 +64,31 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
       toast.error('Failed to load categories');
     } finally {
       setIsCategoriesLoading(false);
+    }
+  };
+
+  const loadVendors = async () => {
+    setIsVendorsLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.CONTACTS.BASE, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.contacts) {
+        const vendors = data.data.contacts.map(vendor => ({
+          value: vendor._id,
+          label: vendor.name,
+        }));
+        setVendorOptions(vendors);
+      } else {
+        toast.error(data.message || 'Failed to load vendors');
+      }
+    } catch (error) {
+      console.error('Load vendors error:', error);
+      toast.error('Failed to load vendors');
+    } finally {
+      setIsVendorsLoading(false);
     }
   };
 
@@ -114,6 +143,7 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
           category: product.category?._id || '',
           salesPrice: product.salesPrice.toFixed(2),
           purchasePrice: product.purchasePrice.toFixed(2),
+          vendors: product.vendors?.map(v => v._id) || [],
         });
       } else {
         toast.error(data.message || 'Failed to load product');
@@ -138,6 +168,7 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
         category: formData.category,
         salesPrice: parseFloat(formData.salesPrice),
         purchasePrice: parseFloat(formData.purchasePrice),
+        vendors: formData.vendors,
       };
 
       const url = recordId
@@ -325,6 +356,40 @@ export default function ProductMasterForm({ recordId, onBack, onHome, onNew }) {
                 placeholder="15.00 Rs"
                 required
               />
+            </div>
+
+            {/* Vendors Multi-Select */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-muted-foreground">
+                Vendors (Can Supply This Product)
+              </label>
+              <div className="border border-border rounded-lg p-3 max-h-48 overflow-y-auto bg-input">
+                {isVendorsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading vendors...</p>
+                ) : vendorOptions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No vendors found</p>
+                ) : (
+                  vendorOptions.map((vendor) => (
+                    <label key={vendor.value} className="flex items-center gap-2 py-1.5 cursor-pointer hover:bg-muted/50 rounded px-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.vendors.includes(vendor.value)}
+                        onChange={(e) => {
+                          const newVendors = e.target.checked
+                            ? [...formData.vendors, vendor.value]
+                            : formData.vendors.filter(v => v !== vendor.value);
+                          handleChange('vendors', newVendors);
+                        }}
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                      <span className="text-sm text-foreground">{vendor.label}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select vendors who can supply this product. This will help filter products when creating purchase orders.
+              </p>
             </div>
 
             <div className="text-xs text-primary space-y-1 mt-4">

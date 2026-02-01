@@ -27,10 +27,15 @@ export default function PurchaseOrderForm() {
   const [existingVendorBillId, setExistingVendorBillId] = useState(null);
   const [productForm, setProductForm] = useState({
     productName: '',
+    productId: '',
     quantity: 1,
     unitPrice: 0,
     budgetAnalyticId: null,
   });
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   
   // AI Recommendation State
   const [aiSuggestion, setAiSuggestion] = useState(null);
@@ -45,6 +50,25 @@ export default function PurchaseOrderForm() {
       generatePoNumber();
     }
   }, [id]);
+
+  // Fetch products when modal opens
+  useEffect(() => {
+    if (showProductModal) {
+      fetchAllProducts();
+    }
+  }, [showProductModal]);
+
+  // Filter products based on search term
+  useEffect(() => {
+    if (productSearchTerm) {
+      const filtered = availableProducts.filter(p => 
+        p.name.toLowerCase().includes(productSearchTerm.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    } else {
+      setFilteredProducts(availableProducts);
+    }
+  }, [productSearchTerm, availableProducts]);
 
   // Trigger AI recommendation when vendor and product are selected
   useEffect(() => {
@@ -80,6 +104,32 @@ export default function PurchaseOrderForm() {
     } catch (error) {
       toast.error('Failed to load vendors');
       setVendors([]);
+    }
+  };
+
+  const fetchAllProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const response = await fetch(`${API_ENDPOINTS.PRODUCTS.BASE}`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.products) {
+        // Filter out archived products
+        const activeProducts = data.data.products.filter(p => p.status !== 'archived');
+        setAvailableProducts(activeProducts);
+        setFilteredProducts(activeProducts);
+      } else {
+        setAvailableProducts([]);
+        setFilteredProducts([]);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setAvailableProducts([]);
+      setFilteredProducts([]);
+    } finally {
+      setIsLoadingProducts(false);
     }
   };
 
@@ -250,7 +300,8 @@ export default function PurchaseOrderForm() {
   // Close product modal and reset all states
   const closeProductModal = () => {
     setShowProductModal(false);
-    setProductForm({ productName: '', quantity: 1, unitPrice: 0, budgetAnalyticId: null });
+    setProductForm({ productName: '', productId: '', quantity: 1, unitPrice: 0, budgetAnalyticId: null });
+    setProductSearchTerm('');
     setAiSuggestion(null);
     setShowAISuggestion(false);
   };
@@ -793,14 +844,45 @@ export default function PurchaseOrderForm() {
                 <label className="text-sm font-medium text-foreground block mb-1">
                   Product Name *
                 </label>
-                <Input
-                  type="text"
-                  value={productForm.productName}
-                  onChange={(e) =>
-                    setProductForm({ ...productForm, productName: e.target.value })
-                  }
-                  placeholder="Enter product name"
-                />
+                {isLoadingProducts ? (
+                  <div className="w-full px-3 py-2 rounded-lg bg-muted text-muted-foreground border border-border">
+                    Loading products...
+                  </div>
+                ) : availableProducts.length === 0 ? (
+                  <div className="w-full px-3 py-2 rounded-lg bg-muted text-muted-foreground border border-border">
+                    No products available. Please create products in Product Master first.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      value={productSearchTerm}
+                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                      placeholder="Search products..."
+                    />
+                    <select
+                      value={productForm.productId}
+                      onChange={(e) => {
+                        const selectedProduct = availableProducts.find(p => p._id === e.target.value);
+                        setProductForm({
+                          ...productForm,
+                          productId: e.target.value,
+                          productName: selectedProduct?.name || '',
+                          unitPrice: selectedProduct?.purchasePrice || 0
+                        });
+                        setProductSearchTerm('');
+                      }}
+                      className="w-full px-3 py-2 rounded-lg bg-input text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select a product</option>
+                      {filteredProducts.map((product) => (
+                        <option key={product._id} value={product._id}>
+                          {product.name} - ₹{product.purchasePrice}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>

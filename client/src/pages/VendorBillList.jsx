@@ -28,17 +28,13 @@ export default function VendorBillList() {
 
   useEffect(() => {
     fetchVendorBills();
-  }, [activeTab]);
+  }, []);
 
   const fetchVendorBills = async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (activeTab !== 'all') {
-        params.append('status', activeTab);
-      }
-
-      const response = await fetch(`${API_ENDPOINTS.VENDOR_BILLS.BASE}?${params}`, {
+      // Always fetch all vendor bills to maintain accurate counts
+      const response = await fetch(`${API_ENDPOINTS.VENDOR_BILLS.BASE}`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();

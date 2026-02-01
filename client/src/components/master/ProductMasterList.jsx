@@ -20,14 +20,21 @@ export default function ProductMasterList({ onNew, onEdit, onHome }) {
   const loadProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.PRODUCTS.BASE}?status=${activeTab}`, {
+      // For "new" tab, show both new and confirmed statuses (all non-archived)
+      // For "archived" tab, show only archived status
+      const statusParam = activeTab === 'new' ? '' : `?status=${activeTab}`;
+      const response = await fetch(`${API_ENDPOINTS.PRODUCTS.BASE}${statusParam}`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
       console.log('prod data', data);
 
       if (data.success) {
-        setProducts(data.data.products || []);
+        // Filter out archived items when on "new" tab
+        const filteredProducts = activeTab === 'new' 
+          ? (data.data.products || []).filter(p => p.status !== 'archived')
+          : (data.data.products || []);
+        setProducts(filteredProducts);
       } else {
         toast.error(data.message || 'Failed to load products');
       }

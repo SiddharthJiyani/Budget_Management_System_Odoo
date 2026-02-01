@@ -20,13 +20,20 @@ export default function AnalyticalMasterList({ onNew, onEdit, onHome }) {
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.ANALYTICS.BASE}?status=${activeTab}`, {
+      // For "new" tab, show both new and confirmed statuses (all non-archived)
+      // For "archived" tab, show only archived status
+      const statusParam = activeTab === 'new' ? '' : `?status=${activeTab}`;
+      const response = await fetch(`${API_ENDPOINTS.ANALYTICS.BASE}${statusParam}`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
 
       if (data.success) {
-        setAnalytics(data.data.analytics || []);
+        // Filter out archived items when on "new" tab
+        const filteredAnalytics = activeTab === 'new' 
+          ? (data.data.analytics || []).filter(a => a.status !== 'archived')
+          : (data.data.analytics || []);
+        setAnalytics(filteredAnalytics);
       } else {
         toast.error(data.message || 'Failed to load analytics');
       }

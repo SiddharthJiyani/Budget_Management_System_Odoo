@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
         UPDATE_STATUS: (id) => `${API_BASE_URL}/api/budgets/${id}/status`,
         REVISE: (id) => `${API_BASE_URL}/api/budgets/${id}/revise`,
         ANALYTIC_DETAILS: (budgetId, analyticId) => `${API_BASE_URL}/api/budgets/${budgetId}/analytic/${analyticId}/details`,
+        DELETE_ANALYTIC: (budgetId) => `${API_BASE_URL}/api/budgets/${budgetId}`,
     },
 
     // Vendor endpoints

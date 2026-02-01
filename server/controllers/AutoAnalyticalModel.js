@@ -450,7 +450,7 @@ exports.getAIRecommendation = async (req, res) => {
         const { getAIRecommendationWithHistory } = require("../services/AIRecommendationService");
         
         // At least one context field required
-        if (!productId && !partnerId && !productCategoryId) {
+        if (!productId && !partnerId && !productCategoryId) { 
             return res.status(400).json({
                 success: false,
                 message: "At least one of productId, partnerId, or productCategoryId is required",
@@ -471,7 +471,17 @@ exports.getAIRecommendation = async (req, res) => {
                 context.partnerName = partner.name;
                 if (partner.tags && partner.tags.length > 0) {
                     const tags = await PartnerTag.find({ _id: { $in: partner.tags } }).select('name').lean();
-                    context.partnerTagNames = tags.map(t => t.name);
+                    console.log('tags', tags);
+                    const tags1 = await PartnerTag.find({ _id: { $in: partner.tags } }).select('name').lean();
+                    console.log("=================================================================")
+                    console.log('tags1', tags1);
+
+                    // context.partnerTagNames = tags.map(t => t.name);
+                    let tagsnames   = [] ;
+                    for(let i = 0 ; i < tags.length ; i++){
+                        tagsnames.push(tags[i].name);
+                    }
+                    context.partnerTagNames = tagsnames;
                 }
             }
         }

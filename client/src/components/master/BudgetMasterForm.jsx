@@ -103,6 +103,21 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew, onEd
     }
   };
 
+  const handleDelete = async (id) => {
+    // detete
+    const url = API_ENDPOINTS.BUDGETS.DELETE_ANALYTIC(id);
+    try {
+      const resp = await fetch(url , {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+    }
+    catch(e){
+      console.log("error while deleting: ",e)
+    }
+    
+  }
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -387,6 +402,11 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew, onEd
             >
               Revise
             </Button>
+            <Button
+              onClick = {() => (handleDelete(recordId))}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleArchive} variant="outline" size="sm">
               Archived
             </Button>
@@ -427,7 +447,7 @@ export default function BudgetMasterForm({ recordId, onBack, onHome, onNew, onEd
             </span>
             <span className="text-muted-foreground/40">→</span>
             <span
-              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${status === 'canceled' ? 'text-destructive' : 'text-muted-foreground/60'
+              className={`px-3 py-1 text-xs font-semibold transition-all duration-300 ${status === 'archived' ? 'text-destructive' : 'text-muted-foreground/60'
                 }`}
             >
               Cancelled

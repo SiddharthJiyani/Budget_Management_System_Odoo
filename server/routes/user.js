@@ -2,8 +2,17 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const { signup, login, sendotp, forgotPassword, checkLoginId, createUser, linkUserToContact, getAllUsers } = require("../controllers/Auth");
 const passport = require("../config/passport");
+const { CLIENT_URL } = require("../config/api");
 const { auth, isAdmin } = require("../middleware/auth");
 const router = express.Router();
+
+const buildClientUrl = (pathname, searchParams = {}) => {
+  const url = new URL(pathname, CLIENT_URL);
+  Object.entries(searchParams).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+};
 
 // Public routes
 router.post("/signup", signup);
@@ -39,12 +48,12 @@ router.get("/google", (req, res, next) => {
 
 router.get("/google/callback", (req, res, next) => {
   if (!isGoogleConfigured()) {
-    return res.redirect("http://localhost:5173/login?error=google_not_configured");
+    return res.redirect(buildClientUrl("/login", { error: "google_not_configured" }));
   }
   
   passport.authenticate("google", { session: false, failureRedirect: "/login" }, (err, user) => {
     if (err || !user) {
-      return res.redirect("http://localhost:5173/login?error=auth_failed");
+      return res.redirect(buildClientUrl("/login", { error: "auth_failed" }));
     }
     
     // Generate JWT token for the user
@@ -55,7 +64,7 @@ router.get("/google/callback", (req, res, next) => {
     );
     
     // Redirect to frontend with token
-    res.redirect(`http://localhost:5173/auth/callback?token=${token}`);
+    res.redirect(buildClientUrl("/auth/callback", { token }));
   })(req, res, next);
 });
 

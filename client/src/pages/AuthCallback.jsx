@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API_URL = 'http://localhost:4000/api/auth';
+import { API_ENDPOINTS } from '../config/api';
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -34,7 +33,7 @@ export default function AuthCallback() {
       }
 
       try {
-        const response = await fetch(`${API_URL}/me`, {
+        const response = await fetch(API_ENDPOINTS.AUTH.ME, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

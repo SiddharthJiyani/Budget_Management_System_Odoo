@@ -2,6 +2,7 @@ const express = require("express");
 require("dotenv").config();
 const app = express();
 const cors = require("cors");
+const { CLIENT_URLS } = require("./config/api");
 const database = require('./config/database');
 const cookieParser = require("cookie-parser");
 const fileUpload = require("express-fileupload");
@@ -22,8 +23,15 @@ app.use(fileUpload({
 }));
 
 // CORS configuration
+const allowedOrigins = new Set(CLIENT_URLS);
 const corsOptions = {
-    origin: "http://localhost:5173", // Replace with your frontend URL
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
     optionsSuccessStatus: 200
 };

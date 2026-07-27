@@ -499,7 +499,10 @@ Create a `.env` file in the `/server` directory:
 ```env
 # Server
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/budget_management
+BASE_URL=https://api.example.com
+CLIENT_URL=https://app.example.com
+CLIENT_URLS=https://app.example.com,https://www.example.com
+MONGODB_URL=mongodb://localhost:27017/budget_management
 JWT_SECRET=your_jwt_secret
 
 # Google OAuth
@@ -520,17 +523,22 @@ RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 
 # Cloudinary
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_key
-CLOUDINARY_API_SECRET=your_cloudinary_secret
+CLOUD_NAME=your_cloud_name
+API_KEY=your_cloudinary_key
+API_SECRET=your_cloudinary_secret
 
 # Email
 MAIL_USER=your_email@gmail.com
 MAIL_PASS=your_app_password
 
 # Frontend URL (for CORS)
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=https://app.example.com
+
+# Frontend API base URL
+VITE_API_URL=https://api.example.com
 ```
+
+The backend also accepts `MONGO_URI` and `CLOUDINARY_*` env names for backward compatibility, but `MONGODB_URL`, `CLOUD_NAME`, `API_KEY`, and `API_SECRET` are the preferred deployment values.
 
 ---
 

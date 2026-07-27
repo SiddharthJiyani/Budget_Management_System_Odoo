@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, CheckCircle, XCircle, FileText, FileVideo, FileImage, File } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_ENDPOINTS } from '../config/api';
 
 const FileUpload = ({ onUploadComplete }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -95,7 +96,7 @@ const FileUpload = ({ onUploadComplete }) => {
       }, 200);
 
       // Make the actual upload request to your backend
-      const response = await fetch('http://localhost:4000/api/files/upload', {
+      const response = await fetch(API_ENDPOINTS.FILES.UPLOAD, {
         method: 'POST',
         body: formData,
         credentials: 'include',

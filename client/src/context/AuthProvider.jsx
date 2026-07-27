@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const AuthContext = createContext({
   user: null,
@@ -11,8 +12,6 @@ const AuthContext = createContext({
 });
 
 export const useAuth = () => useContext(AuthContext);
-
-const API_URL = 'http://localhost:4000/api/auth';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -30,7 +29,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const response = await fetch(`${API_URL}/me`, {
+        const response = await fetch(API_ENDPOINTS.AUTH.ME, {
           headers: {
             Authorization: `Bearer ${storedToken}`,
           },
@@ -59,7 +58,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const response = await fetch(`${API_URL}/login`, {
+    const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

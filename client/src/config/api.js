@@ -123,8 +123,8 @@ export const API_ENDPOINTS = {
         UPLOAD: `${API_BASE_URL}/api/files/upload`,
         UPLOAD_MULTIPLE: `${API_BASE_URL}/api/files/upload-multiple`,
         DELETE: `${API_BASE_URL}/api/files/delete`,
-        GET_ALL: `${API_BASE_URL}/api/files`,
-        GET_USER_FILES: `${API_BASE_URL}/api/files/user`,
+        GET_ALL: `${API_BASE_URL}/api/files/all`,
+        GET_USER_FILES: `${API_BASE_URL}/api/files/my-files`,
     },
 
     // Auto-Analytical endpoints
@@ -140,6 +140,14 @@ export const API_ENDPOINTS = {
         KEY: `${API_BASE_URL}/api/payment/key`,
         GET_PAYMENT: (paymentId) => `${API_BASE_URL}/api/payment/${paymentId}`,
         REFUND: `${API_BASE_URL}/api/payment/refund`,
+    },
+
+    // Portal endpoints
+    PORTAL: {
+        MY_INVOICES: `${API_BASE_URL}/api/portal/my-invoices`,
+        PAYMENT_CREATE_ORDER: `${API_BASE_URL}/api/portal/payment/create-order`,
+        PAYMENT_DETAILS: (type, id) => `${API_BASE_URL}/api/portal/payment/${type}/${id}`,
+        PAYMENT_VERIFY: `${API_BASE_URL}/api/portal/payment/verify`,
     },
 };
 

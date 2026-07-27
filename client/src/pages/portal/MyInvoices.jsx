@@ -5,8 +5,7 @@ import PortalHeader from '../../components/portal/PortalHeader';
 import { Card, Button } from '../../components/ui';
 import { CheckCircle, XCircle, Loader2, FileText, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API_URL = 'http://localhost:4000/api';
+import { API_ENDPOINTS } from '../../config/api';
 
 /**
  * My Invoices Page
@@ -42,7 +41,7 @@ export default function MyInvoices() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${API_URL}/portal/my-invoices`, {
+            const response = await fetch(API_ENDPOINTS.PORTAL.MY_INVOICES, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -82,7 +81,7 @@ export default function MyInvoices() {
         try {
             // Step 1: Create Razorpay order via portal endpoint
             const orderResponse = await fetch(
-                `${API_URL}/portal/payment/create-order`,
+                API_ENDPOINTS.PORTAL.PAYMENT_CREATE_ORDER,
                 {
                     method: 'POST',
                     headers: {
@@ -116,12 +115,12 @@ export default function MyInvoices() {
             }
 
             // Step 3: Get Razorpay key
-            const keyResponse = await fetch(`${API_URL}/payment/key`);
+            const keyResponse = await fetch(API_ENDPOINTS.PAYMENT.KEY);
             const keyData = await keyResponse.json();
 
             // Step 4: Get customer details for prefill
             const detailsResponse = await fetch(
-                `${API_URL}/portal/payment/${doc.type}/${doc.id}`,
+                API_ENDPOINTS.PORTAL.PAYMENT_DETAILS(doc.type, doc.id),
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -145,7 +144,7 @@ export default function MyInvoices() {
                     setPaymentLoading(true);
                     try {
                         const verifyResponse = await fetch(
-                            `${API_URL}/portal/payment/verify`,
+                            API_ENDPOINTS.PORTAL.PAYMENT_VERIFY,
                             {
                                 method: 'POST',
                                 headers: {

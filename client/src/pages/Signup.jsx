@@ -5,8 +5,7 @@ import toast from 'react-hot-toast';
 import { Button } from '../components/ui';
 import { Input } from '../components/ui';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui';
-
-const API_URL = 'http://localhost:4000/api/auth';
+import { API_ENDPOINTS } from '../config/api';
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -96,7 +95,7 @@ export default function Signup() {
     setCheckingLoginId(true);
 
     try {
-      const response = await fetch(`${API_URL}/check-loginid`, {
+      const response = await fetch(API_ENDPOINTS.AUTH.CHECK_LOGIN_ID, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loginId }),
@@ -128,7 +127,7 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/signup`, {
+      const response = await fetch(API_ENDPOINTS.AUTH.SIGNUP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

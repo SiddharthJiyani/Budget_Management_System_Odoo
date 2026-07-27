@@ -1,8 +1,19 @@
 // Centralized API configuration to avoid hardcoded URLs
+require("dotenv").config();
+
+const normalizeUrlList = (value, fallback) => {
+    const rawValue = value || fallback;
+    return rawValue
+        .split(',')
+        .map((url) => url.trim())
+        .filter(Boolean);
+};
+
 module.exports = {
     // Base URLs
     BASE_URL: process.env.BASE_URL || 'http://localhost:4000',
     CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+    CLIENT_URLS: normalizeUrlList(process.env.CLIENT_URLS, process.env.CLIENT_URL || 'http://localhost:5173'),
     
     // Cloudinary configuration
     CLOUDINARY: {

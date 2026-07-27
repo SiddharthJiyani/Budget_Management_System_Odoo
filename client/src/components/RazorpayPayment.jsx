@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { CreditCard, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 const RazorpayPayment = () => {
   const [amount, setAmount] = useState('');
@@ -38,7 +39,7 @@ const RazorpayPayment = () => {
       }
 
       // Create order on backend
-      const orderResponse = await fetch('http://localhost:4000/api/payment/create-order', {
+      const orderResponse = await fetch(API_ENDPOINTS.PAYMENT.CREATE_ORDER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ const RazorpayPayment = () => {
       }
 
       // Get Razorpay key
-      const keyResponse = await fetch('http://localhost:4000/api/payment/key');
+      const keyResponse = await fetch(API_ENDPOINTS.PAYMENT.KEY);
       const keyData = await keyResponse.json();
 
       // Configure Razorpay options
@@ -73,7 +74,7 @@ const RazorpayPayment = () => {
         handler: async function (response) {
           // Payment successful, verify on backend
           try {
-            const verifyResponse = await fetch('http://localhost:4000/api/payment/verify-payment', {
+            const verifyResponse = await fetch(API_ENDPOINTS.PAYMENT.VERIFY, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

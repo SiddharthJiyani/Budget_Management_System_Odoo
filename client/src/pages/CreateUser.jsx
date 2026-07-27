@@ -6,8 +6,7 @@ import { Button } from '../components/ui';
 import { Input, Select } from '../components/ui';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui';
 import Header from '../components/Header';
-
-const API_URL = 'http://localhost:4000/api/auth';
+import { API_ENDPOINTS } from '../config/api';
 
 export default function CreateUser() {
   const [formData, setFormData] = useState({
@@ -101,7 +100,7 @@ export default function CreateUser() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/create-user`, {
+      const response = await fetch(API_ENDPOINTS.AUTH.CREATE_USER, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

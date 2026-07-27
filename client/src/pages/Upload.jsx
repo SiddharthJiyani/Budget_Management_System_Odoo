@@ -3,6 +3,7 @@ import FileUpload from '../components/FileUpload';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { API_ENDPOINTS } from '../config/api';
 
 const Upload = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -18,7 +19,7 @@ const Upload = () => {
   const fetchAllFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/files/all', {
+      const response = await fetch(API_ENDPOINTS.FILES.GET_ALL, {
         credentials: 'include',
       });
 
@@ -55,7 +56,7 @@ const Upload = () => {
     setDeletingFiles(prev => new Set([...prev, fileId]));
 
     try {
-      const response = await fetch('http://localhost:4000/api/files/delete', {
+      const response = await fetch(API_ENDPOINTS.FILES.DELETE, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

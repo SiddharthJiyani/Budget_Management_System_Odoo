@@ -9,6 +9,8 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
@@ -42,6 +44,8 @@ function App() {
             <Route path="/payment" element={<RazorpayPayment />} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+            <Route path="/reset-password/:token" element={<PublicRoute><ResetPassword /></PublicRoute>} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/create-user" element={<ProtectedRoute><CreateUser /></ProtectedRoute>} />

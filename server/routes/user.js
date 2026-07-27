@@ -1,6 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { signup, login, sendotp, forgotPassword, checkLoginId, createUser, linkUserToContact, getAllUsers } = require("../controllers/Auth");
+const { signup, login, sendotp, forgotPassword, resetPassword, checkLoginId, createUser, linkUserToContact, getAllUsers } = require("../controllers/Auth");
 const passport = require("../config/passport");
 const { CLIENT_URL } = require("../config/api");
 const { auth, isAdmin } = require("../middleware/auth");
@@ -19,6 +19,7 @@ router.post("/signup", signup);
 router.post("/login", login);
 router.post("/sendotp", sendotp);
 router.post("/forgotpassword", forgotPassword);
+router.post("/resetpassword", resetPassword);
 router.post("/check-loginid", checkLoginId);
 
 // Protected admin-only routes

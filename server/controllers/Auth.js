@@ -5,6 +5,7 @@ const OTP = require("../models/OTP");
 const otpGenerator = require("otp-generator");
 const mailSender = require("../utils/mailSender");
 const forgotPasswordTemplate = require("../mail/templates/forgotPasswordTemplate");
+const { CLIENT_URL } = require("../config/api");
 
 // Check loginId availability
 exports.checkLoginId = async (req, res) => {
@@ -388,8 +389,8 @@ exports.forgotPassword = async (req, res) => {
 			expiresIn: "1h", //  
 		});
 
-		// Frontend link for resetting password
-		const resetUrl = `http://localhost:3000/reset-password/${resetToken}`;
+    // Frontend link for resetting password
+    const resetUrl = `${CLIENT_URL}/reset-password/${resetToken}`;
 
 
 		const subject = 'Password Reset Request';
@@ -410,6 +411,59 @@ exports.forgotPassword = async (req, res) => {
 		});
 	}
 }
+
+// Function for Reset Password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password, confirmPassword } = req.body;
+
+    if (!token || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Token, password, and confirm password are required.",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password and Confirm Password do not match.",
+      });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Reset token is invalid or has expired.",
+      });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset password. Please try again.",
+    });
+  }
+};
 
 // Link User to Contact
 exports.linkUserToContact = async (req, res) => {

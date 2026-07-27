@@ -1,11 +1,35 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
-import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../components/ui';
 import { Input } from '../components/ui';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui';
+import DemoAccessDialog from '../components/DemoAccessDialog';
+
+const DEMO_ACCOUNTS = [
+  {
+    key: 'admin',
+    label: 'Admin demo',
+    note: 'Full access to master data, users, and approvals.',
+    values: [
+      { label: 'Login ID', value: 'demo-admin' },
+      { label: 'Password', value: 'Demo@1234' },
+    ],
+    fill: { loginId: 'demo-admin', password: 'Demo@1234' },
+  },
+  {
+    key: 'portal',
+    label: 'Portal demo',
+    note: 'Customer/vendor view for invoices and payments.',
+    values: [
+      { label: 'Login ID', value: 'demo-portal' },
+      { label: 'Password', value: 'Demo@1234' },
+    ],
+    fill: { loginId: 'demo-portal', password: 'Demo@1234' },
+  },
+];
 
 export default function Login() {
   const [loginId, setLoginId] = useState('');
@@ -13,8 +37,16 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDemoDialog, setShowDemoDialog] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const autofillDemo = (item) => {
+    setLoginId(item.fill.loginId);
+    setPassword(item.fill.password);
+    setShowDemoDialog(false);
+    toast.success(`${item.label} filled`);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,6 +144,15 @@ export default function Login() {
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
 
+              <button
+                type="button"
+                onClick={() => setShowDemoDialog(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Sparkles size={16} />
+                Click here for demo access
+              </button>
+
               <div className="flex items-center justify-center gap-4 text-sm pt-2">
                 <Link
                   to="/forgot-password"
@@ -131,6 +172,15 @@ export default function Login() {
           </CardContent>
         </Card>
       </div>
+
+      <DemoAccessDialog
+        open={showDemoDialog}
+        title="Demo accounts for recruiter review"
+        description="Use these credentials to quickly explore the admin and portal flows. Click Autofill Demo to fill the login form instantly."
+        items={DEMO_ACCOUNTS}
+        onClose={() => setShowDemoDialog(false)}
+        onAutofill={autofillDemo}
+      />
     </div>
   );
 }

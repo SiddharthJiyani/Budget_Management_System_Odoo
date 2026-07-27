@@ -1,11 +1,33 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Eye, EyeOff, CheckCircle, Check, X } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, CheckCircle, Check, X, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '../components/ui';
 import { Input } from '../components/ui';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui';
 import { API_ENDPOINTS } from '../config/api';
+import DemoAccessDialog from '../components/DemoAccessDialog';
+
+const DEMO_ACCOUNTS = [
+  {
+    key: 'admin',
+    label: 'Admin demo',
+    note: 'Full access to master data, users, and approvals.',
+    values: [
+      { label: 'Login ID', value: 'demo-admin' },
+      { label: 'Password', value: 'Demo@1234' },
+    ],
+  },
+  {
+    key: 'portal',
+    label: 'Portal demo',
+    note: 'Customer/vendor view for invoices and payments.',
+    values: [
+      { label: 'Login ID', value: 'demo-portal' },
+      { label: 'Password', value: 'Demo@1234' },
+    ],
+  },
+];
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -24,6 +46,7 @@ export default function Signup() {
   const [success, setSuccess] = useState(false);
   const [checkingLoginId, setCheckingLoginId] = useState(false);
   const [loginIdStatus, setLoginIdStatus] = useState(null); // 'available', 'taken', or null
+  const [showDemoDialog, setShowDemoDialog] = useState(false);
   const navigate = useNavigate();
 
   // Password validation checklist
@@ -345,6 +368,15 @@ export default function Signup() {
                 {isLoading ? 'Creating Account...' : 'Sign Up'}
               </Button>
 
+              <button
+                type="button"
+                onClick={() => setShowDemoDialog(true)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Sparkles size={16} />
+                Click here for demo sign-in
+              </button>
+
               <p className="text-center text-sm text-muted-foreground pt-2">
                 Already have an account?{' '}
                 <Link to="/login" className="text-primary font-medium hover:underline">
@@ -355,6 +387,19 @@ export default function Signup() {
           </CardContent>
         </Card>
       </div>
+
+      <DemoAccessDialog
+        open={showDemoDialog}
+        title="Demo sign-in credentials"
+        description="If you only want to explore the platform, use one of these demo accounts and sign in directly."
+        items={DEMO_ACCOUNTS}
+        onClose={() => setShowDemoDialog(false)}
+        onPrimaryAction={() => {
+          setShowDemoDialog(false);
+          navigate('/login');
+        }}
+        primaryActionLabel="Go to login"
+      />
     </div>
   );
 }

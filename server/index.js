@@ -8,6 +8,8 @@ const cookieParser = require("cookie-parser");
 const fileUpload = require("express-fileupload");
 const { cloudinaryConnect } = require("./config/cloudinary");
 const passport = require("./config/passport");
+const User = require("./models/User");
+const bcrypt = require("bcrypt");
 
 const port = process.env.PORT || 4000;
 
@@ -40,8 +42,52 @@ app.use(cors(corsOptions));
 // Connecting to database
 database.connectDB();
 
+seedDemoUsers().catch((error) => {
+    console.error('Demo user seeding failed:', error);
+});
+
 // Connect to Cloudinary
 cloudinaryConnect();
+
+async function seedDemoUsers() {
+    const demoUsers = [
+        {
+            email: 'demo-admin@example.com',
+            loginId: 'demo-admin',
+            password: 'Demo@1234',
+            firstName: 'Demo',
+            lastName: 'Admin',
+            accountType: 'admin',
+        },
+        {
+            email: 'demo-portal@example.com',
+            loginId: 'demo-portal',
+            password: 'Demo@1234',
+            firstName: 'Demo',
+            lastName: 'Portal',
+            accountType: 'portal',
+        },
+    ];
+
+    for (const demoUser of demoUsers) {
+        const hashedPassword = await bcrypt.hash(demoUser.password, 10);
+        await User.findOneAndUpdate(
+            { $or: [{ email: demoUser.email }, { loginId: demoUser.loginId }] },
+            {
+                $set: {
+                    ...demoUser,
+                    name: `${demoUser.firstName} ${demoUser.lastName}`,
+                    password: hashedPassword,
+                },
+            },
+            {
+                upsert: true,
+                new: true,
+                setDefaultsOnInsert: true,
+            }
+        );
+    }
+}
 
 // Routes
 const userRoutes = require("./routes/user");
